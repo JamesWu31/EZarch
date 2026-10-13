@@ -1,0 +1,34 @@
+name: Windows and macOS checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.26'
+      - name: Locked runtime
+        run: uv sync --project skills/ezarch --python 3.12 --frozen --extra model --extra dev
+      - name: Unit and interoperability tests
+        run: uv run --project skills/ezarch --no-sync python -m pytest -q tests
+      - name: Lint
+        run: uv run --project skills/ezarch --no-sync ruff check --config ruff.toml skills/ezarch/src skills/ezarch/scripts tests tools
+      - name: Package self-contained skill
+        run: uv run --project skills/ezarch --no-sync python tools/package_skill.py --out dist
+      - name: Build wheel
+        run: uv build --project skills/ezarch --wheel --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ezarch-${{ matrix.os }}
+          path: dist/
