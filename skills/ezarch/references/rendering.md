@@ -1,15 +1,13 @@
-# Rendering
+# 渲染模块
 
-Run `render <scene.json|blend|glb|gltf|obj|ply|stl> --out <dir>`. A render can start from an external model without running the design module. GLB has metre-based coordinates; OBJ/PLY/STL require `--source-units mm|m`, chosen from documented source dimensions. Do not guess units; the adapter applies the declared conversion. GLB/GLTF use their metre convention. Direct SKP/DWG and arbitrary NURBS 3DM import are deferred; do not tell the user these files were read if they were not.
+输入可以是现有 BLEND/GLB/GLTF/OBJ/PLY/STL，或 EZarch scene.json。OBJ/PLY/STL 明确 --source-units mm|m；不猜单位。先读公开资源指引，保持项目设计和尺寸。原生SKP/DWG和任意NURBS 3DM导入仍暂缓。
 
-For the exact model route, `model` creates `scene.json` with named geometry, mm coordinates and materials. The Blender worker converts it to metres, preserves component IDs, and records the imported bounds. Source STEP remains the exact geometry deliverable. The `.blend` scene is the editable rendering deliverable.
+先确定视觉目标及每个镜头要表达的空间关系，镜头数随任务决定。外观、入口、室内、鸟瞰、节点各自解决不同问题；同一立面的小幅换位不代替互补镜头。正交轴测可与透视并用，避免广角夸大尺度。设计需要时设置室内照明和定制材质，而不是仅调整曝光。
 
-Use `--quality preview` first. Choose project cameras intentionally: position, target, lens, aspect and optional orthographic scale. For architectural exteriors, a convincing eye-level courtyard or façade composition is often more useful than only an overhead image. Inspect a second viewpoint to reveal concealed defects.
+主体精确几何由同源数据传入，Blender转换为m。精细公开家具、灯具、植被、PBR/HDRI按项目选择，记录源页面与许可。模型分辨率随镜头距离选择，材质重复尺度按实际米制设置。公开素材不能替代空间设计；没有完整家具/设备/材料的空壳不能通过精细室内验收。
 
-Materials use real-world object coordinates and physical parameters. Keep wall whites below a clipped white, add restrained micro-bump, use actual frame/glass thickness, and coordinate paving scale with the drawings. The procedural vegetation helper provides branches and individual leaves; replace or refine it when its silhouette or realism is inadequate for the camera. Preserve provenance for downloaded assets.
+`render <input> --camera <id|all> --quality preview --out <dir>` 先出小图，检查空间、资产尺寸、接缝、收口、玻璃、纹理、阴影和背景。修正后出final；采样与分辨率只改善成像，不补设计缺项。按纸面尺寸计算像素需求，CPU/GPU实测选择，不以设备宣传推断后端。
 
-Blender is the final render environment. The worker detects supported GPU backends and records CPU fallback. Do not promise GPU use from hardware marketing names. Rendering uses Cycles, AgX and a fixed seed. A lower-noise final render is not a substitute for correcting bad materials, perspective or composition.
+渲染保存 PNG、BLEND、真实对象边界、公开资产来源/尺寸、日志和后端证据。PBR/资产图像pack进BLEND，再重开检查贴图路径；原始项目依赖另记manifest。源几何变化重建场景，单独光照/相机变化可在项目BLEND中程序调整。
 
-After reviewing a preview, refine the project/material/camera configuration, then use `--quality final --width <px> --samples <n>`. Required pixel width = intended printed width in mm / 25.4 × target PPI. Check noise, edges, glass and foliage at both whole-image and detail scale.
-
-The renderer writes PNG, scene.blend, source-bounds evidence, selected backend and Blender log. Existing BLEND input preserves its scene lighting and camera where present. Changes to geometry require a rebuilt source scene; changing only lighting/camera need not redesign the building.
+最后检查整图和局部，记录具体问题及修正。制作方自审明确标注，不把非空图像、分辨率或低噪点作为真实感的充分证据。

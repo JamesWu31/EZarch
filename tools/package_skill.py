@@ -1,6 +1,7 @@
 """Create a portable skill archive without environments or user project artifacts."""
 import argparse
 import hashlib
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -11,7 +12,8 @@ root = Path(__file__).resolve().parents[1]
 skill = root / 'skills/ezarch'
 excluded = {'.venv', '.ezarch', '__pycache__', '.pytest_cache', '.ruff_cache', 'dist', 'build'}
 args.out.mkdir(parents=True, exist_ok=True)
-archive = args.out / 'ezarch-0.1.0-skill.zip'
+version = tomllib.loads((skill / 'pyproject.toml').read_text())['project']['version']
+archive = args.out / f'ezarch-{version}-skill.zip'
 files = [p for p in skill.rglob('*') if p.is_file() and not any(x in excluded for x in p.relative_to(skill).parts) and p.suffix not in {'.pyc', '.pyo'} and p.name != '.DS_Store']
 with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as z:
     for file in sorted(files):

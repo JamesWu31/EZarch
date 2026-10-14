@@ -1,13 +1,21 @@
-# Design and reference intake
+# 任务、参考与设计
 
-Run `reference <image-or-pdf> --out <dir>`. PDF intake extracts all pages, text and vector paths and renders previews; image intake preserves pixel dimensions. Optional `--known-mm N --pixel-distance P` records orthographic scale from a known distance. These are extraction tools, not claims of semantic recognition.
+项目 `task.yml` 记录 modules、mode（create/develop/reconstruct）、use、depth、inputs、assumptions、deliverables、acceptance。成果按用途定义，不用固定图量：单张立面、一个模型、一组室内镜头或整套方案均可独立完成。
 
-Open relevant previews. Identify boundaries, openings, circulation, level heights and viewpoints. For PDF paths account for page transforms, clipping and intentional dotted/dashed lines. A zero-length round-cap stroke may represent a meaningful dot. Inspect stairs and tiny symbols separately rather than trusting an overall image difference metric.
+输入分别记来源、可观察内容、尺寸依据、未知内容和设计决定。复现不新增未经标明的构造；创作不把参照全部形式当成硬约束。提取空间、比例、材料或光线原则，再作本项目响应。
 
-For image calibration, record the two actual source-pixel endpoints and what real distance they represent in the project's source notes. Do not use distances measured on a resized preview as if they were source pixels. Rectify scanned perspective before applying a single scale; perspective photos require camera/vanishing-point reasoning and corroborating dimensions.
+## 参考解析
 
-For a design without a traceable drawing, begin with a functional/area brief, adjacency and circulation, orientation, structural intent, levels and hard dimensions. Separate net room areas from gross area. Resolve circulation and opening conflicts before adding presentation detail. Offer alternatives only when useful to the user's requested design decision.
+`reference <PDF|image> --out <dir>` 提取文字、路径和预览。打开预览；提取成功不是语义识别完成。正投影校准记录真实像素端点与已知距离，不能用缩小预览像素校准原图。扫描件先校正畸变。透视照片需要消失点、相机和多参考交叉推断，不能唯一确定遮蔽尺寸。
 
-Write the chosen parameters into `project.yml` using [project-data.md](project-data.md), run `brief`, and inspect room areas and overlap results. A failed overlap check is a design issue to resolve, not something to hide by disabling the checker. Specialized regulatory or performance claims require a stated source, jurisdiction/method and corresponding verification.
+微小虚线、圆头点划线、楼梯折断和裁切边界可能有含义，查看局部。模型截图没有原始精度；明确推断范围。保留原件。
 
-Partial elevations/sections may be drafted directly when adequate measured information is available; construct a full model only when it helps deliver the selected scope. With partial references, mark designed or inferred parts rather than asserting perfect reconstruction.
+## 创作与深化
+
+先将需求转为功能/空间/性能/表达问题，再形成布局、体量和材料决定。功能清单由建筑类型决定，不默认住宅或套用案例房间表。需要比较时给有实质差别的备选，不机械输出三套。
+
+按任务范围处理：场地与进入 → 功能面积与邻接 → 水平/竖向流线 → 使用尺度与家具设备 → 结构围护意图 → 材料和重点空间。保留已有明确设计，仅补本次内容。
+
+决定落实为尺寸、构件和空间数据。净面积、建筑面积、庭院面积分开计算。家具要有使用区，门能开不等于通行成立。以实际平剖面和镜头反查。标明采用值，不对推断尺寸伪造毫米级实测精度。
+
+无场地资料时可用明示假设作设计；真实场地分析则需找数据或限定结论。一般决定由 AI 完成，只询问无法替代的事实和核心偏好。生成前写好验收清单，不能围绕当前脚本能力缩减任务。

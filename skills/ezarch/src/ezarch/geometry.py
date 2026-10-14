@@ -31,7 +31,8 @@ def build(project: Project) -> list[Part]:
     for e in project.elements:
         kind, eid, material = e["kind"], e["id"], e["material"]
         category = e.get("category", kind)
-        meta = {"source_id": eid, "kind": kind}
+        meta = {"source_id": eid, "kind": kind, **{k: e[k] for k in
+                ("level", "assembly", "type_code", "provenance") if k in e}}
         if kind == "step":
             shape = cq.importers.importStep(str(project._base_dir / e["file"])).val()
             if not shape.Solids():
@@ -168,11 +169,19 @@ def mesh_scene(project: Project, parts: list[Part], tolerance=1.0) -> dict:
                         "vertices": [list(v.toTuple()) for v in verts],
                         "faces": [list(f) for f in faces], "bounds_mm": bounds(part.shape),
                         "volume_mm3": part.shape.Volume(), "metadata": part.metadata})
+    materials = {k: v.model_dump() for k, v in project.materials.items()}
+    for spec in materials.values():
+        spec["maps"] = {k: str((project._base_dir / p).resolve()) for k, p in spec.get("maps", {}).items()}
+    render = dict(project.render)
+    if render.get("hdri"):
+        render["hdri"] = str((project._base_dir / render["hdri"]).resolve())
+    render["asset_instances"] = [{**a, "file": str((project._base_dir / a["file"]).resolve())}
+                                 for a in render.get("asset_instances", [])]
     return {"schema_version": 1, "name": project.name, "units": "mm",
             "project_hash": fingerprint(project), "mesh_tolerance_mm": tolerance,
-            "materials": {k: v.model_dump() for k, v in project.materials.items()},
+            "materials": materials,
             "objects": objects, "cameras": project.cameras, "landscape": project.landscape,
-            "render": project.render}
+            "render": render}
 
 
 def generate_model(project: Project, out: Path, formats=None) -> dict:

@@ -1,0 +1,20 @@
+profile: cn-architectural-expression
+basis: GB/T 50001-2017 selected drawing rules; verify project applicability
+scope: expression helpers, not whole-building compliance
+pens_mm:
+  A-CUT: 0.5
+  A-OUTLINE: 0.35
+  A-VISIBLE: 0.18
+  A-FURNITURE: 0.13
+  A-ANNOTATION: 0.18
+  A-DIM: 0.13
+  A-GRID: 0.13
+  A-HATCH: 0.09
+numeric_minimum_mm: 2.5
+cjk_ttf_sizes_mm: [3, 4, 6, 8, 10, 14, 20]
+axis_circle_diameter_mm: 8
+index_circle_diameter_mm: 10
+north_circle_diameter_mm: 24
+section_position_length_mm: 7
+section_direction_length_mm: 5
+furniture_status: ordinary graphic convention, not prescribed standard symbols

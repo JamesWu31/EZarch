@@ -76,11 +76,15 @@ def extract_view(parts: list[Part], view: dict):
     kind = view.get("kind", "plan")
     exclude = set(view.get("exclude", ["site", "water", "landscape"]))
     selected = [p for p in parts if p.category not in exclude and not (kind == "plan" and p.category == "door")]
+    selected = [p for p in selected if p.id not in view.get("exclude_ids", [])]
     inf = 1e6
     if kind == "plan":
         at = float(view.get("cut_z", 1200))
         normal, xdir, origin = (0, 0, 1), (1, 0, 0), (0, 0, at)
-        clip = box((-inf, -inf, -inf), (2 * inf, 2 * inf, inf + at))
+        bottom = float(view.get("floor_z", -inf))
+        if bottom >= at:
+            raise ValueError("Plan floor_z must be below cut_z")
+        clip = box((-inf, -inf, bottom), (2 * inf, 2 * inf, at - bottom))
     elif kind == "section":
         at = float(view.get("at", 0))
         axis = view.get("axis", "y")
@@ -134,6 +138,8 @@ def extract_view(parts: list[Part], view: dict):
 
 
 def save_view(project: Project, data: dict, view: dict, stem: Path):
+    if view.get("drafting") is not None:
+        return save_annotated_view(project, data, view, stem)
     import ezdxf
     from ezdxf.enums import TextEntityAlignment
     all_points = [p for line in data["lines"] for p in line] + [p for c in data["cuts"] for p in c["outer"]]
@@ -179,6 +185,8 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
 
     if data["kind"] == "plan":
         for room in project.rooms:
+            if room.get("level") != view.get("level"):
+                continue
             polygon = room["polygon"]
             canvas.poly([paper(p) for p in polygon], close=True, fill=room.get("fill", "#f7f6f1"), stroke=None)
             spacing = room.get("grid_mm")
@@ -196,6 +204,8 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
                                 path(list(segment.coords), "A-FURNITURE", .045, "#d5d3c8")
                         value += spacing
         for tree in project.landscape:
+            if view.get("floor_z", 0) > 0:
+                continue
             if tree.get("kind") != "tree":
                 continue
             cx, cy = tree["position"][:2]
@@ -239,6 +249,8 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
                        for a in np.linspace(0, pi / 2, 25)]
                 path(arc, "A-ANNOTATION", .09, "#969b90")
         for i, room in enumerate(project.rooms):
+            if room.get("level") != view.get("level"):
+                continue
             if room.get("label", True) is False:
                 continue
             centre = room.get("label_at") or list(Polygon(room["polygon"]).representative_point().coords)[0]
@@ -254,7 +266,7 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
     if data["kind"] in {"section", "elevation"}:
         for level in view.get("levels", []):
             path([[minx - 800, level], [minx - 150, level]], "A-ANNOTATION", .12)
-            label([minx - 1100, level + 160], f"{level / 1000:+.3f}", 1.8)
+            label([minx - 1100, level + 160], "±0.000" if level == 0 else f"{level / 1000:.3f}", 2.5)
     dims = []
     for d in project.dimensions:
         if d.get("view", "plan") not in (data["kind"], view["id"]):
@@ -312,6 +324,97 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
         raise RuntimeError("Generated DXF failed structural audit")
     doc.saveas(stem.with_suffix(".dxf"))
     write_json(stem.with_suffix(".geometry.json"), {**data, **meta})
+    return report
+
+
+def save_annotated_view(project: Project, data: dict, view: dict, stem: Path):
+    """Rich drawing adapter; commands are explicit project-selected annotations."""
+    from shapely.geometry import Polygon
+
+    from .drafting import Drawing
+    points = [p for line in data["lines"] for p in line] + [p for cut in data["cuts"] for p in cut["outer"]]
+    if not points:
+        raise ValueError(f"Empty view {view['id']}")
+    xs, ys = zip(*points)
+    bounds = [min(xs), min(ys), max(xs), max(ys)]
+    scale = view.get("scale", 100)
+    frame = view.get("drawing_bounds", [bounds[0] - 25 * scale, bounds[1] - 25 * scale,
+                                        bounds[2] + 25 * scale, bounds[3] + 25 * scale])
+    drawing = Drawing(frame, scale, view.get("title", view["id"]), view.get("number", ""),
+                      view.get("margin", 8))
+    if view.get("paper_mm") and (drawing.width > view["paper_mm"][0] or drawing.height > view["paper_mm"][1]):
+        raise ValueError("Requested drawing scale does not fit paper")
+    rooms = [r for r in project.rooms if r.get("level") == view.get("level")]
+    if data["kind"] == "plan":
+        for room in rooms:
+            drawing.canvas.poly([drawing.paper(p) for p in room["polygon"]], close=True,
+                                fill=room.get("fill", "#faf9f5"), stroke=None)
+    for line in data["lines"]:
+        drawing.poly(line, color="#46534d")
+    for cut in data["cuts"]:
+        drawing.canvas.poly([drawing.paper(p) for p in cut["outer"]], close=True, fill="#26312e", width=.35)
+        drawing.ms.add_lwpolyline(cut["outer"], close=True, dxfattribs={"layer": "A-CUT"})
+        hatch = drawing.ms.add_hatch(color=7, dxfattribs={"layer": "A-CUT"})
+        hatch.paths.add_polyline_path(cut["outer"], is_closed=True, flags=1)
+        for hole in cut["holes"]:
+            drawing.canvas.poly([drawing.paper(p) for p in hole], close=True, fill="#ffffff", width=.35)
+            hatch.paths.add_polyline_path(hole, is_closed=True, flags=0)
+    if data["kind"] == "plan":
+        for e in project.elements:
+            if e["kind"] != "wall":
+                continue
+            start, end = np.array(e["start"]), np.array(e["end"])
+            t = (end - start) / np.linalg.norm(end - start)
+            n = np.array([-t[1], t[0]])
+            for op in e.get("openings", []):
+                bottom = e.get("z", 0) + op.get("sill", 0)
+                if op.get("type") not in {"door", "glass_door"} or not bottom <= view.get("cut_z", 1200) < bottom + op["height"]:
+                    continue
+                f, side = op.get("frame", 42), op.get("swing_side", 1)
+                if op.get("operation") == "sliding":
+                    a = start + t * (op["offset"] + f)
+                    b = start + t * (op["offset"] + op["width"] - f)
+                    middle = (a + b) / 2
+                    drawing.poly([a, b], layer="A-ANNOTATION")
+                    for sign in (-1, 1):
+                        tip = middle + t * sign * op["width"] * .3 + n * 1.5 * scale
+                        drawing.poly([middle + n * 1.5 * scale, tip], layer="A-ANNOTATION")
+                        drawing.poly([tip - t * sign * scale + n * scale, tip,
+                                      tip - t * sign * scale - n * scale], layer="A-ANNOTATION")
+                    continue
+                leaves = op.get("leaves", min(2, op.get("panels", 1)))
+                radius = (op["width"] - 2 * f) / leaves
+                for leaf in range(leaves):
+                    reverse = -1 if leaf == 1 else 1
+                    offset = op["offset"] + (op["width"] - f if leaf == 1 else f)
+                    hinge = start + t * offset
+                    drawing.poly([hinge, hinge + n * radius * side], layer="A-ANNOTATION")
+                    drawing.poly([hinge + radius * (t * reverse * cos(a) + n * side * sin(a))
+                                  for a in np.linspace(0, pi / 2, 25)], layer="A-ANNOTATION", width=.13)
+        for room in rooms:
+            if not room.get("label", True):
+                continue
+            label_style = view.get("room_labels", {}).get(room["id"], {})
+            p = label_style.get("position") or room.get("label_at") or list(Polygon(room["polygon"]).representative_point().coords)[0]
+            drawing.text(p, label_style.get("text", room.get("plan_name", room.get("name", room["id"]))), 3)
+            drawing.text([p[0], p[1] - 4 * scale], f"{Polygon(room['polygon']).area / 1e6:.1f} m²", 2.5)
+    for d in project.dimensions:
+        if d.get("view", "plan") in (data["kind"], view["id"]):
+            drawing.dimension(d["p1"], d["p2"], d["base"])
+    allowed = {"axis", "dimension", "chain", "level", "north", "section_mark", "index", "leader",
+               "furniture", "text", "poly", "rect", "line", "circle"}
+    for command in view["drafting"]:
+        command = dict(command)
+        op = command.pop("op")
+        if op not in allowed:
+            raise ValueError(f"Unknown drafting command {op}")
+        # Custom annotation linework must not enter model projection alignment layer.
+        if op in {"poly", "rect", "line", "circle"}:
+            command.setdefault("layer", "A-ANNOTATION")
+        getattr(drawing, op)(**command)
+    report = drawing.save(stem, metadata={"project_hash": fingerprint(project), "bounds_mm": bounds})
+    write_json(stem.with_suffix(".geometry.json"), {**data, **report["metadata"], "scale_bar_segments": 4,
+                                                  "scale_bar_height_mm": 1})
     return report
 
 

@@ -10,11 +10,17 @@ from .project import Project, fingerprint, write_json
 PALETTE = {"interior": "#b7bca8", "courtyard": "#dfd5bc", "service": "#89998e", "water": "#b2c8c3"}
 
 
-def generate_diagrams(project: Project, out: Path):
-    if not project.rooms:
+def generate_diagrams(project: Project, out: Path, level: str | None = None):
+    level_ids = {r.get("level") for r in project.rooms}
+    if len(level_ids) > 1 and level is None:
+        raise ValueError("Multi-level diagrams require --level to avoid stacking floors")
+    rooms = [r for r in project.rooms if level is None or r.get("level") == level]
+    if not rooms:
+        raise ValueError(f"No rooms for level: {level}")
+    if not rooms:
         raise ValueError("Diagrams require room or space polygons")
     out.mkdir(parents=True, exist_ok=True)
-    polygons = [Polygon(r["polygon"]) for r in project.rooms]
+    polygons = [Polygon(r["polygon"]) for r in rooms]
     xmin, ymin = min(p.bounds[0] for p in polygons), min(p.bounds[1] for p in polygons)
     xmax, ymax = max(p.bounds[2] for p in polygons), max(p.bounds[3] for p in polygons)
     scale = max(xmax - xmin, ymax - ymin) / 135
@@ -26,7 +32,7 @@ def generate_diagrams(project: Project, out: Path):
     for kind, title in [("program", "01 / PROGRAM"), ("circulation", "02 / CONNECTIONS"),
                         ("solid-void", "03 / SOLID + VOID")]:
         canvas = Canvas(170, 184)
-        for room in project.rooms:
+        for room in rooms:
             rtype = room.get("type", "interior")
             color = room.get("diagram_color", PALETTE.get(rtype, "#c8c8bc"))
             if kind == "solid-void":
@@ -36,12 +42,22 @@ def generate_diagrams(project: Project, out: Path):
             canvas.poly([point(p) for p in room["polygon"]], close=True, fill=color,
                         stroke="#ffffff", width=.7)
         if kind == "program":
-            for n, room in enumerate(project.rooms, 1):
+            for n, room in enumerate(rooms, 1):
                 centre = list(Polygon(room["polygon"]).representative_point().coords)[0]
                 x, y = point(centre)
                 canvas.text(x, y, f"{n:02}", size=3.2, align="center", color="#394135")
         if kind == "circulation":
-            for route in project.brief.get("routes", []):
+            for route_spec in project.brief.get("routes", []):
+                if isinstance(route_spec, dict):
+                    if level is not None and route_spec.get("level") != level:
+                        continue
+                    route = route_spec["points"]
+                else:
+                    if len(level_ids) > 1:
+                        raise ValueError("Multi-level circulation routes require level and points")
+                    route = route_spec
+                if len(route) < 2:
+                    raise ValueError("Circulation route requires at least two points")
                 points = [point(p) for p in route]
                 canvas.poly(points, stroke="#9b7250", width=.8)
                 a, b = points[-2:]
@@ -57,11 +73,11 @@ def generate_diagrams(project: Project, out: Path):
         canvas.text(17, 179, captions[kind], size=1.8, color="#747c68")
         outputs[kind] = canvas.save(out / kind, metadata={"project_hash": fingerprint(project), "diagram": kind})
     # Areas are actual polygon measurements, not percentages invented for the graphic.
-    area_canvas = Canvas(220, max(80, 40 + len(project.rooms) * 12))
+    area_canvas = Canvas(220, max(80, 40 + len(rooms) * 12))
     area_canvas.text(15, 17, "SPACE SCHEDULE / NET AREAS", size=4, bold=True)
     largest = max(p.area for p in polygons)
     areas = []
-    for i, (room, poly) in enumerate(zip(project.rooms, polygons)):
+    for i, (room, poly) in enumerate(zip(rooms, polygons)):
         y = 32 + i * 12
         area_canvas.text(15, y + 3, room.get("name", room.get("id", "")), size=2.8)
         area_canvas.rect(80, y - 1, 95 * poly.area / largest, 5,

@@ -18,11 +18,20 @@ def compose(template: Path, out: Path):
     for i, sheet in enumerate(data["sheets"]):
         width, height = sheet.get("size_mm", [594, 841])
         canvas = Canvas(width, height, sheet.get("background", "#ffffff"))
-        slots, image_checks = [], []
+        slots, image_checks, text_boxes = [], [], []
         for item in sheet["items"]:
             kind = item["type"]
             x, y = item["x"], item["y"]
             if kind == "text":
+                if "w" in item and "h" in item:
+                    if x < 0 or y < 0 or x + item["w"] > width or y + item["h"] > height:
+                        raise ValueError("Text box exceeds page")
+                    info = canvas.text_box(x, y, item["w"], item["h"], item["text"],
+                        size=item.get("size", 3), leading=item.get("leading"),
+                        color=item.get("color", "#343930"), bold=item.get("bold", False))
+                    text_boxes.append({"rect_mm": [x, y, item["w"], item["h"]],
+                                       "allow_overlap": item.get("allow_overlap", False), **info})
+                    continue
                 lines = str(item["text"]).split("\n")
                 size = item.get("size", 3)
                 for n, line in enumerate(lines):
@@ -72,8 +81,16 @@ def compose(template: Path, out: Path):
                 raise ValueError(f"Unsupported board content type {kind}")
             slots.append(slot)
         stem = out / f"board-{i + 1:02d}"
+        for text_index, box in enumerate(text_boxes):
+            if box["allow_overlap"]:
+                continue
+            x, y, w, h = box["rect_mm"]
+            for other in slots + text_boxes[:text_index]:
+                px, py, pw, ph = other["rect_mm"]
+                if min(x + w, px + pw) - max(x, px) > .01 and min(y + h, py + ph) - max(y, py) > .01:
+                    raise ValueError("Text box overlaps another board content slot")
         report = canvas.save(stem, dpi=data.get("preview_dpi", 100), metadata={"title": sheet.get("title", data.get("title", "EZarch"))})
-        report.update(slots=slots, image_checks=image_checks)
+        report.update(slots=slots, image_checks=image_checks, text_boxes=text_boxes)
         if report["text_overflow"]:
             raise ValueError(f"Board text overflow: {report['text_overflow']}")
         if report["geometry_overflow"]:

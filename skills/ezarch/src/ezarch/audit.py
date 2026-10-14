@@ -19,6 +19,12 @@ def audit(source: Path, out: Path):
     def check(name, passed, detail):
         checks.append({"name": name, "passed": bool(passed), "detail": detail})
 
+    def check_bindings(data, owner):
+        for binding in data.get("source_bindings", []):
+            file = owner.parent / binding["file"]
+            valid = file.is_file() and hashlib.sha256(file.read_bytes()).hexdigest() == binding.get("sha256")
+            check("supplemental_source_version", valid, {"report": owner.name, "source": binding["file"]})
+
     scenes = list(root.rglob("scene.json"))
     for file in scenes:
         scene = json.loads(file.read_text(encoding="utf-8"))
@@ -113,11 +119,13 @@ def audit(source: Path, out: Path):
         if pdf.exists():
             with fitz.open(pdf) as doc:
                 page = doc[0]
+                segments = data.get("scale_bar_segments", 5)
+                bar_height = data.get("scale_bar_height_mm", .9)
                 bars = [d["rect"] for d in page.get_drawings()
-                        if abs(d["rect"].height * 25.4 / 72 - .9) < .002]
+                        if abs(d["rect"].height * 25.4 / 72 - bar_height) < .002]
                 # The last five little rectangles are the 5 metre scale control.
-                bars = bars[-5:]
-                actual = (max(b.x1 for b in bars) - min(b.x0 for b in bars)) * 25.4 / 72 if len(bars) == 5 else None
+                bars = bars[-segments:]
+                actual = (max(b.x1 for b in bars) - min(b.x0 for b in bars)) * 25.4 / 72 if len(bars) == segments else None
                 want = data.get("scale_bar_model_mm", 5000) / data["scale"]
                 check("PDF_physical_scale", actual is not None and abs(actual - want) < .01,
                       {"file": pdf.name, "bar_mm": actual, "expected_bar_mm": want})
@@ -126,6 +134,7 @@ def audit(source: Path, out: Path):
                  for f in scenes for obj in json.loads(f.read_text(encoding="utf-8")).get("objects", [])}
     for report in root.rglob("render-report.json"):
         data = json.loads(report.read_text(encoding="utf-8"))
+        check_bindings(data, report)
         if expected_hash and data.get("source_project_hash"):
             check("render_source_version", data["source_project_hash"] == expected_hash, str(report.relative_to(root)))
         stored_bounds = data.get("source_bounds", [])
@@ -135,12 +144,19 @@ def audit(source: Path, out: Path):
             if not executable:
                 raise RuntimeError("Saved BLEND verification requires Blender; prepare the render profile")
             saved_report = report.parent / "blend-readback.json"
+            asset_report = report.parent / "blend-assets-readback.json"
             with (report.parent / "blend-readback.log").open("w", encoding="utf-8") as stream:
-                subprocess.run([executable, "--background", "--factory-startup", "--python-exit-code", "1",
+                subprocess.run([executable, "--background", "--factory-startup", "--disable-autoexec", "--python-exit-code", "1",
                                 "--python", str(skill_root() / "scripts/blender_verify.py"), "--",
-                                "--input", str(report.parent / "scene.blend"), "--report", str(saved_report)],
+                                "--input", str(report.parent / "scene.blend"), "--report", str(saved_report),
+                                "--asset-report", str(asset_report)],
                                stdout=stream, stderr=subprocess.STDOUT, check=True)
             stored_bounds = json.loads(saved_report.read_text(encoding="utf-8"))
+            dependencies = json.loads(asset_report.read_text(encoding="utf-8"))
+            check("BLEND_images_packed", dependencies["all_images_packed"], dependencies["images"])
+            if data.get("public_assets"):
+                check("BLEND_asset_instances", {a["id"] for a in dependencies["instances"]} ==
+                      {a["id"] for a in data["public_assets"]}, {"count": len(dependencies["instances"])})
             check("BLEND_saved_components", {o["id"] for o in stored_bounds} == {o["id"] for o in data["source_bounds"]}, report.parent.name)
         errors = [float(np.max(np.abs(np.array(obj["bounds_mm"]) - scene_map[obj["id"]])))
                   for obj in stored_bounds if obj["id"] in scene_map]
@@ -154,6 +170,7 @@ def audit(source: Path, out: Path):
                 check("render_nonblank", nonblank, {"file": image["file"], "stddev": float(array.std())})
     for report in root.rglob("*.report.json"):
         data = json.loads(report.read_text(encoding="utf-8"))
+        check_bindings(data.get("metadata", {}), report)
         if expected_hash and data.get("metadata", {}).get("project_hash"):
             check("graphic_source_version", data["metadata"]["project_hash"] == expected_hash, report.name)
         if "text_overflow" in data:
@@ -166,7 +183,8 @@ def audit(source: Path, out: Path):
                 file = Path(slot["file"])
                 matches = file.exists() and hashlib.sha256(file.read_bytes()).hexdigest() == slot["source_sha256"]
                 check("board_asset_version", matches, slot["id"])
-    result = {"root": str(root), "checks": checks, "passed": bool(checks) and all(c["passed"] for c in checks),
+    result = {"scope": "Technical integrity only; architectural quality requires separate review",
+              "architectural_quality": "not_assessed", "root": str(root), "checks": checks, "passed": bool(checks) and all(c["passed"] for c in checks),
               "check_count": len(checks), "visual_review": "required separately; numerical checks do not assess aesthetics"}
     out.mkdir(parents=True, exist_ok=True)
     write_json(out / "audit.json", result)

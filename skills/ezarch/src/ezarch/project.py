@@ -4,9 +4,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
@@ -20,6 +22,9 @@ class Material(BaseModel):
     transmission: float = Field(default=0, ge=0, le=1)
     texture: str = "plain"
     scale: float = Field(default=1, gt=0)
+    maps: dict[str, str] = Field(default_factory=dict)
+    texture_size_m: float = Field(default=1, gt=0)
+    normal_strength: float = Field(default=1, ge=0)
 
 
 class Project(BaseModel):
@@ -41,6 +46,10 @@ class Project(BaseModel):
     render: dict[str, Any] = Field(default_factory=dict)
     board: dict[str, Any] = Field(default_factory=dict)
     sources: list[dict[str, Any]] = Field(default_factory=list)
+    levels: list[dict[str, Any]] = Field(default_factory=list)
+    site: dict[str, Any] = Field(default_factory=dict)
+    assemblies: dict[str, Any] = Field(default_factory=dict)
+    requirements: list[dict[str, Any]] = Field(default_factory=list)
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
 
     @model_validator(mode="after")
@@ -72,6 +81,19 @@ class Project(BaseModel):
             polygon = Polygon(room["polygon"])
             if not polygon.is_valid or polygon.area <= 0:
                 raise ValueError(f"Invalid room polygon: {room.get('id')}")
+        level_ids = [level["id"] for level in self.levels]
+        if len(level_ids) != len(set(level_ids)):
+            raise ValueError("Duplicate level IDs")
+        if self.levels:
+            for room in self.rooms:
+                if room.get("level") not in level_ids:
+                    raise ValueError(f"Room {room.get('id')} needs a known level")
+            for view in self.views:
+                if view.get("kind") == "plan" and view.get("level") not in level_ids:
+                    raise ValueError("Multi-level plans need an explicit level")
+        for material in self.materials.values():
+            if set(material.maps) - {"base_color", "roughness", "normal", "metallic"}:
+                raise ValueError("Unsupported PBR map semantic")
         supported = {"box", "slab", "wall", "cylinder", "extrusion", "stair", "step", "dxf_extrusion"}
         for e in self.elements:
             if e.get("kind") not in supported:
@@ -115,6 +137,26 @@ def fingerprint(project: Project) -> str:
         e["file"]: hashlib.sha256((project._base_dir / e["file"]).read_bytes()).hexdigest()
         for e in project.elements if e["kind"] in {"step", "dxf_extrusion"}
     }
+    dependencies = [path for m in project.materials.values() for path in m.maps.values()]
+    dependencies += [a["file"] for a in project.render.get("asset_instances", [])]
+    if project.render.get("hdri"):
+        dependencies.append(project.render["hdri"])
+    # A GLTF header alone does not bind geometry or textures. Include local buffers
+    # and images so changing a downloaded dependency invalidates stale outputs.
+    for name in list(dependencies):
+        file = project._base_dir / name
+        if file.suffix.lower() == ".gltf":
+            gltf = json.loads(file.read_text(encoding="utf-8"))
+            for item in gltf.get("buffers", []) + gltf.get("images", []):
+                uri = item.get("uri", "")
+                if not uri or uri.startswith("data:"):
+                    continue
+                if urlparse(uri).scheme:
+                    raise ValueError("Download remote GLTF dependencies before building the project")
+                dependencies.append(Path(os.path.relpath(file.parent / unquote(uri), project._base_dir)).as_posix())
+    for name in sorted(set(dependencies)):
+        with (project._base_dir / name).open("rb") as stream:
+            data["external_file_hashes"][name] = hashlib.file_digest(stream, "sha256").hexdigest()
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 

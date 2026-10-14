@@ -16,12 +16,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="ezarch")
     sub = parser.add_subparsers(dest="module", required=True)
     sub.add_parser("doctor")
-    for name in ["brief", "reference", "model", "draft", "views", "diagram", "render", "board", "audit", "exchange"]:
+    for name in ["brief", "reference", "asset", "model", "draft", "views", "diagram", "render", "board", "audit", "review", "exchange"]:
         command = sub.add_parser(name)
         command.add_argument("input", type=Path)
         command.add_argument("--out", type=Path, required=True)
         if name in ("draft", "views"):
             command.add_argument("--only", nargs="+")
+        if name == "diagram":
+            command.add_argument("--level")
         if name == "render":
             command.add_argument("--source-units", choices=["mm", "m"])
             command.add_argument("--camera", default=None)
@@ -69,7 +71,7 @@ def main(argv=None):
                 args.input, args.out, args.known_mm, args.pixel_distance)
         elif args.module == "diagram":
             from .diagrams import generate_diagrams
-            result = generate_diagrams(read_project(args.input), args.out)
+            result = generate_diagrams(read_project(args.input), args.out, args.level)
         elif args.module == "render":
             from .render import render
             result = render(args.input, args.out, args.camera, args.quality, args.width, args.samples, args.source_units)
@@ -82,6 +84,17 @@ def main(argv=None):
         elif args.module == "audit":
             from .audit import audit
             result = audit(args.input, args.out)
+        elif args.module == "review":
+            from .quality import review
+            result = review(args.input, args.out)
+        elif args.module == "asset":
+            import yaml
+
+            from .assets import fetch_polyhaven
+            spec = yaml.safe_load(args.input.read_text(encoding="utf-8"))
+            if spec.get("provider") != "polyhaven":
+                raise ValueError("Built-in asset adapter: provider must be polyhaven")
+            result = fetch_polyhaven(spec["id"], args.out, spec.get("kind", "model"), spec.get("resolution", "1k"))
         else:
             raise ValueError(args.module)
         log.update(state="succeeded", elapsed_s=round(time.time() - started, 3), result=result)

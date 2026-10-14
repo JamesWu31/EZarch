@@ -36,7 +36,30 @@ def material(name, spec):
     bsdf.inputs["Transmission Weight"].default_value = spec.get("transmission", 0)
     bsdf.inputs["IOR"].default_value = 1.45 if spec.get("transmission", 0) else 1.5
     texture = spec.get("texture", "plain")
-    if texture not in {"plain", "glass"}:
+    if spec.get("maps"):
+        coords = nodes.new("ShaderNodeTexCoord")
+        mapping = nodes.new("ShaderNodeVectorMath")
+        mapping.operation = "SCALE"
+        mapping.inputs[3].default_value = 1 / spec.get("texture_size_m", 1)
+        links.new(coords.outputs["UV"], mapping.inputs[0])
+        for semantic, filename in spec["maps"].items():
+            if not Path(filename).is_file():
+                raise FileNotFoundError(filename)
+            tex = nodes.new("ShaderNodeTexImage")
+            tex.image = bpy.data.images.load(filename, check_existing=True)
+            if semantic != "base_color":
+                tex.image.colorspace_settings.name = "Non-Color"
+            links.new(mapping.outputs["Vector"], tex.inputs["Vector"])
+            if semantic == "normal":
+                normal = nodes.new("ShaderNodeNormalMap")
+                normal.space = "TANGENT"
+                normal.inputs["Strength"].default_value = spec.get("normal_strength", 1)
+                links.new(tex.outputs["Color"], normal.inputs["Color"])
+                links.new(normal.outputs["Normal"], bsdf.inputs["Normal"])
+            else:
+                target = {"base_color": "Base Color", "roughness": "Roughness", "metallic": "Metallic"}[semantic]
+                links.new(tex.outputs["Color"], bsdf.inputs[target])
+    elif texture not in {"plain", "glass"}:
         coords = nodes.new("ShaderNodeTexCoord")
         noise = nodes.new("ShaderNodeTexNoise")
         noise.inputs["Scale"].default_value = 3.5 * spec.get("scale", 1)
@@ -98,6 +121,19 @@ def mesh_object(name, vertices, faces, mat, collection=None):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
+    uv = mesh.uv_layers.new(name="WorldMetres")
+    for polygon in mesh.polygons:
+        n = polygon.normal
+        axis = max(range(3), key=lambda i: abs(n[i]))
+        for loop in polygon.loop_indices:
+            p = mesh.vertices[mesh.loops[loop].vertex_index].co
+            if axis == 2:
+                value = (p.x if n.z >= 0 else -p.x, p.y)
+            elif axis == 0:
+                value = (p.y if n.x >= 0 else -p.y, p.z)
+            else:
+                value = (-p.x if n.y >= 0 else p.x, p.z)
+            uv.data[loop].uv = value
     obj = bpy.data.objects.new(name, mesh)
     (collection or bpy.context.scene.collection).objects.link(obj)
     if mat:
@@ -183,6 +219,7 @@ def tree(spec, index):
 
 def load(source, source_units=None):
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.context.preferences.filepaths.use_scripts_auto_execute = False
     suffix = source.suffix.lower()
     if suffix == ".blend":
         bpy.ops.wm.open_mainfile(filepath=str(source))
@@ -234,7 +271,68 @@ def load(source, source_units=None):
     for i, spec in enumerate(data.get("landscape", [])):
         if spec["kind"] == "tree":
             tree(spec, i)
+    imported = []
+    for spec in data.get("render", {}).get("asset_instances", []):
+        imported.append(import_asset(spec))
+    data["imported_assets"] = imported
     return data, bounds_report
+
+
+ASSET_CACHE = {}
+
+
+def import_asset(spec):
+    """Import once, instance many times; keep external models outside exact B-reps."""
+    file = Path(spec["file"])
+    if not spec.get("source_url") or not file.is_file():
+        raise ValueError("Public asset needs an existing downloaded file and source_url")
+    key = str(file.resolve())
+    if key not in ASSET_CACHE:
+        before = set(bpy.data.objects)
+        if file.suffix.lower() in {".gltf", ".glb"}:
+            bpy.ops.import_scene.gltf(filepath=str(file))
+        elif file.suffix.lower() == ".blend":
+            with bpy.data.libraries.load(str(file), link=False) as (src, dst):
+                dst.objects = src.objects
+            for obj in dst.objects:
+                if obj:
+                    bpy.context.scene.collection.objects.link(obj)
+        else:
+            raise ValueError("Public asset adapter supports GLB/GLTF/BLEND")
+        objects = set(bpy.data.objects) - before
+        meshes = [obj for obj in objects if obj.type == "MESH"]
+        if not meshes:
+            raise ValueError(f"No meshes in {file.name}")
+        bpy.context.view_layer.update()
+        points = [o.matrix_world @ Vector(p) for o in meshes for p in o.bound_box]
+        lo = Vector([min(p[i] for p in points) for i in range(3)])
+        hi = Vector([max(p[i] for p in points) for i in range(3)])
+        centre = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+        collection = bpy.data.collections.new("Public / " + file.stem)
+        for obj in objects:
+            if obj.parent not in objects:
+                obj.location -= centre
+            if obj.type in {"LIGHT", "CAMERA"}:
+                obj.hide_render = True
+            for old in list(obj.users_collection):
+                old.objects.unlink(obj)
+            collection.objects.link(obj)
+        ASSET_CACHE[key] = (collection, hi - lo)
+    collection, dimensions = ASSET_CACHE[key]
+    root = bpy.data.objects.new(spec["id"], None)
+    root.instance_type = "COLLECTION"
+    root.instance_collection = collection
+    bpy.context.scene.collection.objects.link(root)
+    scale = float(spec.get("scale", 1))
+    if scale <= 0:
+        raise ValueError("Asset scale must be positive and uniform")
+    root.scale = (scale,) * 3
+    root.rotation_euler.z = math.radians(spec.get("rotation_z", 0))
+    root.location = Vector([c / 1000 for c in spec["position"]])
+    bpy.context.view_layer.update()
+    return {"id": spec["id"], "source_url": spec["source_url"], "file": str(file),
+            "original_size_m": list(dimensions), "uniform_scale": scale,
+            "size_mm": [v * scale * 1000 for v in dimensions], "position_mm": spec["position"]}
 
 
 def lighting(config):
@@ -250,7 +348,17 @@ def lighting(config):
     sky.altitude = 0
     sky.air_density = 1
     sky.dust_density = .8
-    world.node_tree.links.new(sky.outputs["Color"], nodes.get("Background").inputs["Color"])
+    if config.get("hdri"):
+        env = nodes.new("ShaderNodeTexEnvironment")
+        env.image = bpy.data.images.load(config["hdri"], check_existing=True)
+        coord = nodes.new("ShaderNodeTexCoord")
+        mapping = nodes.new("ShaderNodeMapping")
+        mapping.inputs["Rotation"].default_value.z = math.radians(config.get("hdri_rotation", 0))
+        world.node_tree.links.new(coord.outputs["Generated"], mapping.inputs["Vector"])
+        world.node_tree.links.new(mapping.outputs["Vector"], env.inputs["Vector"])
+        world.node_tree.links.new(env.outputs["Color"], nodes.get("Background").inputs["Color"])
+    else:
+        world.node_tree.links.new(sky.outputs["Color"], nodes.get("Background").inputs["Color"])
     nodes.get("Background").inputs["Strength"].default_value = config.get("sky_strength", .28)
     scene.world = world
     sun = bpy.data.lights.new("Sun", type="SUN")
@@ -262,6 +370,18 @@ def lighting(config):
     elev, az = sky.sun_elevation, sky.sun_rotation
     direction = Vector((math.cos(az) * math.cos(elev), math.sin(az) * math.cos(elev), math.sin(elev)))
     obj.rotation_euler = direction.to_track_quat("Z", "Y").to_euler()
+    for spec in config.get("lights", []):
+        light = bpy.data.lights.new(spec["id"], type="AREA")
+        light.energy = spec.get("power_w", 100)
+        light.color = spec.get("color", [1, .85, .66])
+        light.shape = "RECTANGLE"
+        light.size = spec.get("size_mm", [1000, 1000])[0] / 1000
+        light.size_y = spec.get("size_mm", [1000, 1000])[1] / 1000
+        obj = bpy.data.objects.new(spec["id"], light)
+        scene.collection.objects.link(obj)
+        obj.location = Vector([v / 1000 for v in spec["position"]])
+        target = Vector([v / 1000 for v in spec["target"]])
+        obj.rotation_euler = (target - obj.location).to_track_quat("-Z", "Y").to_euler()
 
 
 def choose_device():
@@ -354,6 +474,7 @@ def main():
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", spec["id"]):
             raise ValueError("Camera IDs must be safe filenames")
         scene.camera = spec.get("existing") or camera_from_spec(spec)
+        scene.view_settings.exposure = spec.get("exposure", config.get("exposure", -.5))
         scene.render.resolution_x = options.width or (1100 if options.quality == "preview" else 2600)
         ratio = spec.get("aspect", 1.5)
         scene.render.resolution_y = round(scene.render.resolution_x / ratio)
@@ -370,11 +491,13 @@ def main():
             bpy.ops.render.render(write_still=True)
         output.append({"file": spec["id"] + ".png", "camera": spec["id"],
                        "width": scene.render.resolution_x, "height": scene.render.resolution_y})
+    bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=str(options.out / "scene.blend"), compress=True)
     report = {"blender": bpy.app.version_string, "backend": backend, "device_probe": device_report,
               "samples": scene.cycles.samples, "source_project_hash": data.get("project_hash"),
               "source_bounds": bounds_report, "images": output, "elapsed_s": round(time.time() - started, 2),
-              "decorative_elements": len(data.get("landscape", [])), "color_management": "AgX"}
+              "decorative_elements": len(data.get("landscape", [])), "color_management": "AgX",
+              "public_assets": data.get("imported_assets", [])}
     (options.out / "render-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print("EZARCH_RENDER_COMPLETE", flush=True)
 

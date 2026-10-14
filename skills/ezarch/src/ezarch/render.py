@@ -13,7 +13,7 @@ def render(source: Path, out: Path, camera=None, quality="preview", width=None, 
     if (width is not None and width < 64) or (samples is not None and samples < 1):
         raise ValueError("Render width must be at least 64 pixels and samples positive")
     executable = find_blender() or install_blender()
-    command = [executable, "--background", "--factory-startup", "--python-exit-code", "1",
+    command = [executable, "--background", "--factory-startup", "--disable-autoexec", "--python-exit-code", "1",
                "--python", str(skill_root() / "scripts/blender_scene.py"), "--",
                "--input", str(source), "--out", str(out), "--quality", quality]
     if camera:

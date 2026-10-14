@@ -14,10 +14,12 @@ def brief(project: Project, out: Path):
         polygons.append(polygon)
         areas.append({"id": room.get("id"), "name": room.get("name"),
                       "area_m2": round(polygon.area / 1e6, 3),
-                      "type": room.get("type", "interior")})
+                      "type": room.get("type", "interior"), "level": room.get("level")})
     overlaps = []
     for i, left in enumerate(polygons):
         for j in range(i + 1, len(polygons)):
+            if areas[i]["level"] != areas[j]["level"]:
+                continue
             overlap = left.intersection(polygons[j]).area
             if overlap > 1:
                 overlaps.append({"rooms": [areas[i]["id"], areas[j]["id"]], "area_m2": overlap / 1e6})

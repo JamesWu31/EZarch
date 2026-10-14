@@ -53,6 +53,38 @@ class Canvas:
     def image(self, path, x, y, w, h):
         self.items.append(dict(kind="image", path=str(Path(path).resolve()), x=x, y=y, w=w, h=h))
 
+    def text_box(self, x, y, w, h, text, size=3, leading=None, **kwargs):
+        """Measured wrapping for mixed CJK/Latin text; reject overflow, never shrink."""
+        leading = leading or size * 1.55
+        font = fitz.Font(fontfile=str(skill_root() / "assets/fonts/EZarchFang.ttf"))
+        latin = fitz.Font("hebo" if kwargs.get("bold") else "helv")
+        def width(value):
+            primary = font if any(ord(c) > 255 for c in value) else latin
+            return sum((primary if primary.has_glyph(ord(c)) else latin)
+                       .text_length(c, fontsize=size) for c in value)
+        lines = []
+        for paragraph in str(text).split("\n"):
+            line = ""
+            for char in paragraph:
+                if width(line + char) > w and line:
+                    # Prefer an existing Latin word boundary when possible.
+                    split = line.rfind(" ")
+                    if char.isascii() and char.isalnum() and split > len(line) / 2:
+                        lines.append(line[:split])
+                        line = line[split + 1:] + char
+                    else:
+                        lines.append(line.rstrip())
+                        line = char.lstrip()
+                else:
+                    line += char
+            lines.append(line)
+        used = size + max(0, len(lines) - 1) * leading
+        if used > h + .01 or any(width(line) > w + .01 for line in lines):
+            raise ValueError(f"Text box overflow: {str(text)[:50]}")
+        for i, line in enumerate(lines):
+            self.text(x, y + size + i * leading, line, size=size, **kwargs)
+        return {"lines": len(lines), "used_height_mm": used}
+
     def pdf(self, path, x, y, w, h, page=0):
         self.items.append(dict(kind="pdf", path=str(Path(path).resolve()), x=x, y=y, w=w, h=h,
                                page=page))
@@ -78,20 +110,27 @@ class Canvas:
             svg.append('<defs><style>@font-face{font-family:FandolFang;src:url(data:font/ttf;base64,'
                        + encoded + ')}</style></defs>')
         overflow, geometry_overflow = [], []
+        # Batch adjacent paths: committing each triangle makes MuPDF rescan growing page streams.
+        # Flush at text/media boundaries to preserve painter order.
+        path_batch = None
         for item in self.items:
             k = item["kind"]
+            if k != "poly" and path_batch is not None:
+                path_batch.commit()
+                path_batch = None
             if k == "poly":
                 points = item["points"]
                 if len(points) < 2:
                     continue
                 if any(x < -.1 or x > self.width + .1 or y < -.1 or y > self.height + .1 for x, y in points):
                     geometry_overflow.append({"bounds_mm": [min(p[0] for p in points), min(p[1] for p in points), max(p[0] for p in points), max(p[1] for p in points)]})
-                sh = page.new_shape()
+                if path_batch is None:
+                    path_batch = page.new_shape()
+                sh = path_batch
                 sh.draw_polyline([fitz.Point(x * PT, y * PT) for x, y in points])
                 dashes = None if not item["dash"] else "[" + " ".join(str(v * PT) for v in item["dash"]) + "] 0"
                 sh.finish(color=rgb(item["stroke"]), fill=rgb(item["fill"]),
                           width=item["width"] * PT, closePath=item["close"], dashes=dashes)
-                sh.commit()
                 tag = "polygon" if item["close"] else "polyline"
                 dash_attr = '' if not item["dash"] else f' stroke-dasharray="{",".join(map(str, item["dash"]))}"'
                 svg.append(f'<{tag} points="' + " ".join(f"{x:.5f},{y:.5f}" for x, y in points)
@@ -160,6 +199,8 @@ class Canvas:
                             raw_svg = raw_svg.replace(f'id="{ident}"', f'id="{prefix}{ident}"')
                             raw_svg = raw_svg.replace(f'#{ident}"', f'#{prefix}{ident}"').replace(f'#{ident})', f'#{prefix}{ident})')
                         svg.append(raw_svg)
+        if path_batch is not None:
+            path_batch.commit()
         svg.append("</svg>")
         stem.with_suffix(".svg").write_text("\n".join(svg), encoding="utf-8")
         doc.set_metadata({"title": (metadata or {}).get("title", stem.stem), "producer": "EZarch"})
