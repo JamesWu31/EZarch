@@ -25,8 +25,10 @@ def rgb(value):
 class Canvas:
     """Page coordinates: x right, y down, sizes in mm; text y is the baseline."""
 
-    def __init__(self, width, height, background="#ffffff"):
+    def __init__(self, width, height, background="#ffffff", font=None):
         self.width, self.height = float(width), float(height)
+        self.custom_font = font is not None
+        self.font_path = Path(font) if font is not None else skill_root() / "assets/fonts/EZarchFang.ttf"
         self.items = []
         self.rect(0, 0, width, height, fill=background, stroke=None)
 
@@ -45,8 +47,8 @@ class Canvas:
                     y + radius * math.sin(i * math.tau / 64)) for i in range(64)], close=True, **kwargs)
 
     def text(self, x, y, text, size=3.0, color="#30332f", align="left", bold=False, tag="", rotation=0):
-        if rotation not in (0, 90, 180, 270):
-            raise ValueError("Text rotation must be a multiple of 90 degrees")
+        if not math.isfinite(rotation):
+            raise ValueError("Text rotation must be finite")
         self.items.append(dict(kind="text", x=x, y=y, text=str(text), size=size, color=color,
                                align=align, bold=bold, tag=tag, rotation=rotation))
 
@@ -56,10 +58,10 @@ class Canvas:
     def text_box(self, x, y, w, h, text, size=3, leading=None, **kwargs):
         """Measured wrapping for mixed CJK/Latin text; reject overflow, never shrink."""
         leading = leading or size * 1.55
-        font = fitz.Font(fontfile=str(skill_root() / "assets/fonts/EZarchFang.ttf"))
+        font = fitz.Font(fontfile=str(self.font_path))
         latin = fitz.Font("hebo" if kwargs.get("bold") else "helv")
         def width(value):
-            primary = font if any(ord(c) > 255 for c in value) else latin
+            primary = font if self.custom_font or any(ord(c) > 255 for c in value) else latin
             return sum((primary if primary.has_glyph(ord(c)) else latin)
                        .text_length(c, fontsize=size) for c in value)
         lines = []
@@ -89,9 +91,12 @@ class Canvas:
         self.items.append(dict(kind="pdf", path=str(Path(path).resolve()), x=x, y=y, w=w, h=h,
                                page=page))
 
-    def save(self, stem: Path, dpi=120, metadata=None):
+    def save(self, stem: Path, dpi=120, metadata=None, formats=None):
+        formats = set(["svg", "pdf", "png"] if formats is None else formats)
+        if formats - {"svg", "pdf", "png"}:
+            raise ValueError("Canvas formats: svg, pdf, png")
         stem.parent.mkdir(parents=True, exist_ok=True)
-        font_path = skill_root() / "assets/fonts/EZarchFang.ttf"
+        font_path = self.font_path
         if not font_path.exists():
             raise FileNotFoundError(f"Bundled FangSong font missing: {font_path}")
         cjk_font = fitz.Font(fontfile=str(font_path))
@@ -107,7 +112,8 @@ class Canvas:
                f'width="{self.width}mm" height="{self.height}mm" viewBox="0 0 {self.width} {self.height}">']
         if font_path.exists():
             encoded = base64.b64encode(font_path.read_bytes()).decode()
-            svg.append('<defs><style>@font-face{font-family:FandolFang;src:url(data:font/ttf;base64,'
+            mime = 'font/otf' if font_path.suffix.lower() == '.otf' else 'font/ttf'
+            svg.append('<defs><style>@font-face{font-family:FandolFang;src:url(data:' + mime + ';base64,'
                        + encoded + ')}</style></defs>')
         overflow, geometry_overflow = [], []
         # Batch adjacent paths: committing each triangle makes MuPDF rescan growing page streams.
@@ -138,7 +144,7 @@ class Canvas:
                              f'stroke-width="{item["width"]}" stroke-linejoin="round"{dash_attr}/>')
             elif k == "text":
                 text = item["text"]
-                cjk = any(ord(c) > 255 for c in text)
+                cjk = self.custom_font or any(ord(c) > 255 for c in text)
                 font = cjk_font if cjk else bold_font if item["bold"] else regular_font
                 fontname = "FangSong" if cjk else "EZBold" if item["bold"] else "EZLatin"
                 runs = []
@@ -165,7 +171,10 @@ class Canvas:
                 for run_name, run_font, run_text in runs:
                     page.insert_text(((x + advance * math.cos(angle)) * PT, (y - advance * math.sin(angle)) * PT),
                                      run_text, fontsize=item["size"] * PT, fontname=run_name,
-                                     color=rgb(item["color"]), rotate=item["rotation"])
+                                     color=rgb(item["color"]),
+                                     morph=(fitz.Point((x + advance * math.cos(angle)) * PT,
+                                                      (y - advance * math.sin(angle)) * PT),
+                                            fitz.Matrix(item["rotation"])))
                     advance += run_font.text_length(run_text, fontsize=item["size"])
                 anchor = {"left": "start", "center": "middle", "right": "end"}[item["align"]]
                 family = "FandolFang, Helvetica, Arial, serif" if cjk else "Helvetica, Arial, sans-serif"
@@ -202,15 +211,18 @@ class Canvas:
         if path_batch is not None:
             path_batch.commit()
         svg.append("</svg>")
-        stem.with_suffix(".svg").write_text("\n".join(svg), encoding="utf-8")
+        if "svg" in formats:
+            stem.with_suffix(".svg").write_text("\n".join(svg), encoding="utf-8")
         doc.set_metadata({"title": (metadata or {}).get("title", stem.stem), "producer": "EZarch"})
         doc.subset_fonts()
-        doc.save(str(stem.with_suffix(".pdf")), garbage=4, deflate=True)
-        page.get_pixmap(dpi=dpi, alpha=False).save(str(stem.with_suffix(".png")))
+        if "pdf" in formats:
+            doc.save(str(stem.with_suffix(".pdf")), garbage=4, deflate=True)
+        if "png" in formats:
+            page.get_pixmap(dpi=dpi, alpha=False).save(str(stem.with_suffix(".png")))
         report = {"width_mm": self.width, "height_mm": self.height, "text_overflow": overflow,
                   "geometry_overflow": geometry_overflow,
                   "vector_paths": len(page.get_drawings()), "images": len(page.get_images()),
-                  "metadata": metadata or {}}
+                  "metadata": metadata or {}, "formats": sorted(formats)}
         write_json(stem.with_suffix(".report.json"), report)
         doc.close()
         return report

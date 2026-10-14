@@ -23,6 +23,8 @@
 >
 > 用 $ezarch 为这个模型设置相机和渲染，保留现有设计。
 
+新增/局部修改的可运行例子见 [原生操作](skills/ezarch/references/edit-existing.md)。工具保留用户已有场景设置；默认二维图不附加图框，字体、图框和输出格式可选。
+
 ## 安装与基础设施
 
 可安装内容全部位于 **skills/ezarch**；复制或通过 skill 安装器安装整个目录。入口为 [SKILL.md](skills/ezarch/SKILL.md)。已有可用环境或纯 SVG 脚本可以直接使用；需要随库依赖时，AI 可按需运行：
@@ -47,7 +49,7 @@ AutoCAD 可采用可编辑 DXF；Rhino 可根据需求选网格 3DM 或精确 ST
 
 模型辅助接口使用 mm，GLB/Blender 边界转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
 
-`audit` 和 `review` 是可选的技术/证据检查工具。检查范围按任务选择，不能自动裁定设计、规范合规或审美，不是普通作图和修改的交付门槛。
+`audit` 可按单文件或所选输出检查结构、单位和几何。旧 `review` 仅保留维护兼容，说明见 docs/maintenance-evidence.md，不属于常规作图入口。技术检查不裁定设计、规范合规或审美。
 
 ## 仓库维护
 

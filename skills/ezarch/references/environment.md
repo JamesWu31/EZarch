@@ -36,9 +36,9 @@ powershell -File "<skill>/scripts/bootstrap.ps1" -Profile core
 
 ```text
 reference <PDF|image> --out <dir>
-views <project.yml> --only <view-id> --out <dir>
+views <project.yml> --only <view-id> --formats dxf pdf --out <dir>
 render <scene.json|blend|glb> --camera <id|all> --out <dir>
-board <board.yml> --out <dir>
+board <board.yml> --formats pdf --out <dir>
 ```
 
 各命令会在所选输出目录写执行记录，这是封装的副产物，不要求用户把它列入交付。真实项目、下载素材和生成文件使用项目目录；安装目录保存工具。

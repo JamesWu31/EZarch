@@ -138,6 +138,7 @@ def fingerprint(project: Project) -> str:
         for e in project.elements if e["kind"] in {"step", "dxf_extrusion"}
     }
     dependencies = [path for m in project.materials.values() for path in m.maps.values()]
+    dependencies += [view["font"] for view in project.views if view.get("font")]
     dependencies += [a["file"] for a in project.render.get("asset_instances", [])]
     if project.render.get("hdri"):
         dependencies.append(project.render["hdri"])

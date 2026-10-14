@@ -29,12 +29,19 @@ def export_scene(scene, out: Path, formats):
                     name=obj["material"], baseColorFactor=rgba,
                     roughnessFactor=m.get("roughness", .6), metallicFactor=m.get("metallic", 0)))
                 ts.add_geometry(tm, node_name=obj["id"], geom_name=obj["id"])
+            # glTF uses +Y up. Preserve the architectural Z-up basis through an
+            # explicit node transform so conforming importers restore the orientation.
+            basis = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
+            ts.apply_transform(basis)
+            ts.metadata["ezarch_up_axis"] = "Y"
             target.write_bytes(ts.export(file_type="glb"))
             loaded = trimesh.load(target, force="scene")
             count = len(loaded.geometry)
             if count != len(scene["objects"]):
                 raise RuntimeError("GLB lost objects")
-            report = {"format": fmt, "units": "m", "objects": count,
+            loaded.apply_transform(basis.T)
+            report = {"format": fmt, "units": "m", "objects": count, "up_axis": "Y",
+                      "bounds_basis": "source_Z_up",
                       "bounds_mm": (loaded.bounds * 1000).tolist(), "geometry": "tessellated_mesh"}
         elif fmt == "3dm":
             import rhino3dm as r

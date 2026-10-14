@@ -7,7 +7,8 @@ from .environment import find_blender, install_blender
 from .project import skill_root
 
 
-def render(source: Path, out: Path, camera=None, quality="preview", width=None, samples=None, source_units=None):
+def render(source: Path, out: Path, camera=None, quality=None, width=None, samples=None, source_units=None,
+           save_blend=True):
     if source.suffix.lower() in {".obj", ".ply", ".stl"} and not source_units:
         raise ValueError("Unitless mesh input requires explicit --source-units mm|m")
     if (width is not None and width < 64) or (samples is not None and samples < 1):
@@ -15,7 +16,11 @@ def render(source: Path, out: Path, camera=None, quality="preview", width=None, 
     executable = find_blender() or install_blender()
     command = [executable, "--background", "--factory-startup", "--disable-autoexec", "--python-exit-code", "1",
                "--python", str(skill_root() / "scripts/blender_scene.py"), "--",
-               "--input", str(source), "--out", str(out), "--quality", quality]
+               "--input", str(source), "--out", str(out)]
+    if quality:
+        command += ["--quality", quality]
+    if not save_blend:
+        command += ["--no-save-blend"]
     if camera:
         command += ["--camera", camera]
     if width:

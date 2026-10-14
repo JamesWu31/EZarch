@@ -1,19 +1,23 @@
-# Blender 渲染工具
+# Blender 渲染操作
 
-相机数量、画面风格、细节程度和制作顺序由用户要求与模型判断决定。可直接使用 Blender Python 操作用户已有场景或自行建模；随库 render 命令是可选入口，预览/最终参数也是选项。
+直接用 bpy 可创建或修改几何、材质、灯光、相机和渲染配置。[原生修改例子](edit-existing.md#blender保留场景只改选定对象) 演示沿用用户场景。相机、细节和画面风格由任务决定。
 
-## 可选命令
+## 随库入口
 
-`render <input> --camera <id|all> --quality preview|final --out <dir>` 接收 BLEND/GLB/GLTF/OBJ/PLY/STL，或 EZarch scene.json。可用 `--width`、`--samples` 覆盖成像参数。OBJ/PLY/STL 入口需要 `--source-units mm|m`，因为这些输入本身通常不能可靠说明单位。原生 SKP/DWG 和任意 NURBS 3DM 的随库导入暂缓。
+`render <input> --camera <name|all> --out <dir>` 接收 BLEND/GLB/GLTF/OBJ/PLY/STL 或 EZarch scene.json。OBJ/PLY/STL 需 `--source-units mm|m`。输入为 BLEND 时默认保留引擎、采样、色彩管理、曝光、透明背景、分辨率、图像格式、灯光及原相机名称；输出写到指定目录。
 
-scene.json 入口把建筑毫米坐标转为 Blender 米制，配置材质、灯光和相机。独立 BLEND 使用其已有场景，不必先生成建筑 project.yml。自定义模型、非写实材质和正交视图均可直接用 bpy 实现；不受随库预设类型限制。
+`--width` 和 `--samples` 只覆盖相应设置。`--quality preview|final` 是显式的分辨率/采样预设；已有 BLEND 不传它就沿用场景。新导入的裸模型使用 Cycles/AgX 与预览默认值，可在脚本中改写。中文及含特殊字符的相机使用可移植文件名映射，不重命名场景对象。
 
-## 操作提示
+默认保存渲染图和 scene.blend 副本；`--no-save-blend` 仅渲染，不保存场景副本。已有场景沿用图像文件格式（例如 PNG/JPEG/EXR）；视频配置需要先在 bpy 中设为本次需要的静态图像格式。无论是否保存副本，都有轻量执行记录。
 
-- `scripts/blender_scene.py` 提供材质、公开资产导入、灯光、相机和设备选择函数，可单独复用或替换。
-- 几何模型、网格和外部资产可能采用不同单位、原点和朝向；导入变换决定它们能否对齐。资产入口见 [公开素材](public-assets.md)。
-- PBR 的纹理重复尺度、法线和色彩空间影响物理材质表现；`texture_size_m` 是随库材质的米制参数。自定义着色器可有自己的表达方式。
-- Cycles 采样、降噪和分辨率控制成像，不能改变几何关系。需要打印时，可由版面尺寸和目标有效 PPI 反算像素。
-- 预览小图适合快速判断相机和材质；已有可靠场景也可直接渲染目标成果。CPU/GPU 可通过工具实际检测，不要求采用固定后端。
+## 可复用操作
 
-该命令会保存 PNG、BLEND 和执行记录；实际交付格式按任务选择。`bpy.ops.file.pack_all()` 可将支持的外部图像打包进 BLEND，适合需要独立交付场景时使用。程序材质、文件路径和第三方依赖是否被保留，取决于具体导出格式；简单网格交换不会保留全部 Blender 表现。
+- `scripts/blender_scene.py` 提供材质、资产导入、灯光、相机与设备选择函数，适合按当前需求取用。
+- scene.json 入口把 mm 转为 m；已有 BLEND 保留其坐标与单位。网格和素材的原点、尺度、朝向决定是否对齐。
+- PBR 的贴图重复尺度、法线和色彩空间影响材质表现。随库 `texture_size_m` 为米制；自定义着色器可直接使用节点 API。
+- Cycles 采样、降噪、反弹次数和分辨率影响成像；真实细节仍来自几何、材质、光照和构图。打印像素可由最终放置尺寸与目标 PPI 计算。
+- 新场景可探测 CPU/GPU；已有 BLEND 保留设备设置，失败时根据日志处理，避免静默改变用户场景配置。
+
+新生成场景保存时打包支持的图像依赖；已有 BLEND 默认保留依赖组织，需要独立交付时可主动调用 `bpy.ops.file.pack_all()`。程序材质、参数历史和第三方依赖的跨格式保留程度见 [格式说明](exchange-verification.md)。
+
+公开素材及导入方式见 [资源入口](public-assets.md)。内置素材类别和预设不是 Blender 能力范围。

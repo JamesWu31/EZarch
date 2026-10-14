@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Preserve existing BLEND render settings by default; support Chinese camera names without renaming objects.
+- Make drawing footers opt-in; expose font, angle, symbol parameters and selected output formats.
+- Correct GLB Z-up to glTF Y-up conversion and compare readback in source coordinates.
+- Default model output to STEP; allow selected scene/mesh exports and independent file checks.
+- Retain legacy evidence review only for maintenance compatibility, outside normal skill guidance.
+- Add executable native ezdxf, CadQuery, bpy and SVG editing examples with coordinate/editing notes.
+- Explicitly keep resource search and tool selection open; rename spatial design guidance to spatial measurement.
+
 ## 0.3.0
 
 - Recast the skill as optional tool guidance: user requirements, references and model judgement drive the work.

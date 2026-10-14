@@ -188,18 +188,26 @@ def generate_model(project: Project, out: Path, formats=None) -> dict:
     import cadquery as cq
 
     from .exchange import export_scene
+    formats = set(["step"] if formats is None else formats)
+    if not formats or formats - {"step", "scene", "glb", "3dm", "dae"}:
+        raise ValueError("Model formats: step, scene, glb, 3dm, dae")
     out.mkdir(parents=True, exist_ok=True)
     parts = build(project)
-    scene = mesh_scene(project, parts)
-    write_json(out / "scene.json", scene)
-    assembly = cq.Assembly(name="EZarch")
-    for part in parts:
-        color = project.materials[part.material].color
-        assembly.add(part.shape, name=part.id, color=cq.Color(*color))
-    assembly.export(str(out / "model.step"))
-    exports = export_scene(scene, out, formats or ["glb", "3dm", "dae"])
+    scene = mesh_scene(project, parts) if formats - {"step"} else None
+    if "scene" in formats:
+        write_json(out / "scene.json", scene)
+    if "step" in formats:
+        assembly = cq.Assembly(name="EZarch")
+        for part in parts:
+            color = project.materials[part.material].color
+            assembly.add(part.shape, name=part.id, color=cq.Color(*color))
+        assembly.export(str(out / "model.step"))
+    meshes = sorted(formats & {"glb", "3dm", "dae"})
+    exports = export_scene(scene, out, meshes) if meshes else []
     result = {"module": "model", "project_hash": fingerprint(project), "parts": len(parts),
-              "exact_geometry": "model.step", "scene": "scene.json", "exports": exports,
+              "exact_geometry": "model.step" if "step" in formats else None,
+              "scene": "scene.json" if "scene" in formats else None, "exports": exports,
+              "files": ["scene.json" if f == "scene" else f"model.{f}" for f in sorted(formats)],
               "total_volume_mm3": sum(p.shape.Volume() for p in parts),
               "geometry_valid": all(p.shape.isValid() for p in parts)}
     write_json(out / "model-report.json", result)

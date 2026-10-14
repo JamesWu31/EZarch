@@ -18,16 +18,23 @@ def main(argv=None):
     sub.add_parser("doctor")
     for name in ["brief", "reference", "asset", "model", "draft", "views", "diagram", "render", "board", "audit", "review", "exchange"]:
         command = sub.add_parser(name)
+        if name == "review":
+            command.description = "Legacy evidence-record integrity check, retained for maintenance compatibility."
         command.add_argument("input", type=Path)
         command.add_argument("--out", type=Path, required=True)
         if name in ("draft", "views"):
             command.add_argument("--only", nargs="+")
+        if name in ("model", "draft", "views", "board"):
+            command.add_argument("--formats", nargs="+")
+        if name == "audit":
+            command.add_argument("--outputs", type=Path, help="Outputs directory for optional project comparison")
         if name == "diagram":
             command.add_argument("--level")
         if name == "render":
             command.add_argument("--source-units", choices=["mm", "m"])
             command.add_argument("--camera", default=None)
-            command.add_argument("--quality", choices=["preview", "final"], default="preview")
+            command.add_argument("--quality", choices=["preview", "final"])
+            command.add_argument("--save-blend", action=argparse.BooleanOptionalAction, default=True)
             command.add_argument("--width", type=int, default=None)
             command.add_argument("--samples", type=int, default=None)
         if name == "reference":
@@ -61,10 +68,10 @@ def main(argv=None):
     try:
         if args.module == "model":
             from .geometry import generate_model
-            result = generate_model(read_project(args.input), args.out)
+            result = generate_model(read_project(args.input), args.out, args.formats)
         elif args.module in ("draft", "views"):
             from .views import generate_views
-            result = generate_views(read_project(args.input), args.out, args.only)
+            result = generate_views(read_project(args.input), args.out, args.only, args.formats)
         elif args.module in ("brief", "reference"):
             from .intake import brief, reference
             result = brief(read_project(args.input), args.out) if args.module == "brief" else reference(
@@ -74,16 +81,17 @@ def main(argv=None):
             result = generate_diagrams(read_project(args.input), args.out, args.level)
         elif args.module == "render":
             from .render import render
-            result = render(args.input, args.out, args.camera, args.quality, args.width, args.samples, args.source_units)
+            result = render(args.input, args.out, args.camera, args.quality, args.width, args.samples, args.source_units,
+                            args.save_blend)
         elif args.module == "board":
             from .board import compose
-            result = compose(args.input, args.out)
+            result = compose(args.input, args.out, args.formats)
         elif args.module == "exchange":
             from .exchange import export_scene
             result = export_scene(json.loads(args.input.read_text(encoding="utf-8")), args.out, args.formats)
         elif args.module == "audit":
             from .audit import audit
-            result = audit(args.input, args.out)
+            result = audit(args.input, args.out, args.outputs)
         elif args.module == "review":
             from .quality import review
             result = review(args.input, args.out)

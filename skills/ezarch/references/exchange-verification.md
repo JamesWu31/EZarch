@@ -1,30 +1,39 @@
-# 格式交换与可选检查
+# 格式交换与文件检查
 
-按用户需要选择格式、转换方法和验证范围。单张 SVG、既有模型渲染或局部修改不要求导出全套格式，也不要求创建建筑数据或审计报告。
-
-## 现有工具的输出
-
-| 格式 | 保留内容与边界 |
+| 格式 / 工具 | 保留内容与边界 |
 |---|---|
-| DXF / ezdxf | 图层、文字、块、填充和尺寸等 CAD 实体；字体依赖可另行提供 |
-| STEP / CadQuery | 精确实体与曲面；不等于保留参数建模历史 |
-| 3DM / rhino3dm 交换器 | 有名称、基本颜色的可编辑网格；不是精确 BRep 转换器 |
-| DAE / pycollada | 网格、构件节点、基本颜色；声明 unitmeter=0.001、Z_UP |
-| GLB | 网格及场景，随库适配器用 m |
+| DXF / ezdxf | CAD 图层、文字、块、填充和尺寸；字体可另行提供 |
+| STEP / CadQuery | 精确实体与曲面，不包含原参数建模历史 |
+| 3DM / 随库 rhino3dm 交换器 | 有名称、分类和基本颜色的网格；精确几何可另用 STEP |
+| DAE / pycollada | 网格、构件节点、基本颜色；随库声明毫米、Z_UP |
+| GLB | 网格及场景，随库适配器用 m、Y 向上，并写入从建筑 Z 向上的变换 |
 | BLEND | Blender 场景、灯光、着色器及可打包的图像依赖 |
 
-`exchange scene.json --formats glb 3dm dae --out <dir>` 可单独执行；formats 只列所需格式。`model` 命令默认同时输出 STEP/scene.json/GLB/3DM/DAE，底层 API 可选择交换格式；这不是用户交付要求。
+AutoCAD 交换使用 DXF；Rhino 根据编辑需求选择网格 3DM 或精确 STEP；SketchUp 使用 DAE。第一期原生 DWG/SKP 写入、商业软件控制和 IFC 暂缓。开放库回读验证和在目标软件打开验证是不同证据；材质、图层、尺寸语义及编辑能力取决于实际格式与导入设置。
 
-AutoCAD 可编辑交换采用 DXF；Rhino 可按所需编辑能力选择网格 3DM 或精确 STEP；SketchUp 采用 COLLADA DAE。第一期不提供原生 DWG/SKP 写入或完整商业软件控制。格式支持与目标软件实际打开验证是不同证据；版本、字体和导入设置可能改变结果。
+## 选择输出
 
-程序材质、光学着色器、参数历史与应用特定约束并不会全部进入网格交换。转换是否适用，取决于用户需要保留的内容。
+```text
+model project.yml --formats step --out model
+model project.yml --formats scene glb --out render-input
+views project.yml --only section-a --formats dxf pdf --out sheets
+board board.yml --formats pdf --out boards
+exchange scene.json --formats dae --out exchange
+```
 
-## 可选 audit
+model 默认仅 STEP；明确列出需要的格式。scene 是供随库渲染/跨格式比较使用的 JSON，可单独选用。views/Drawing/Canvas/board 的 formats 参数选择相应输出；省略时保留多格式便利默认值。已有同名旧输出不会因本次未选择而被删除，读取本次报告或使用独立输出位置可区分。
 
-需要核对随库导出结果时，可用 `audit <project.yml|outputs-directory> --out <report-dir>`。project.yml 方式从其同级 outputs 读取结果并比较源指纹；目录方式不要求建筑项目文件。工具识别相应模型、图纸、渲染和板式报告，回读保存文件、尺寸及相关源版本。
+模型使用 `generate_model(project, out, formats=[...])`，独立绘图使用 `drawing.save(stem, formats=["dxf"])`。直接原生 API 无需产生随库报告。
 
-它按内置报告结构工作，不是所有文件或所有用户任务的通用验收器。例如识别到 scene.json 的模型组时，当前审计器会检查完整 STEP/GLB/3DM/DAE 组；用户只要一个格式时可直接回读那个文件，不必为满足审计器多生成文件。自定义 SVG/脚本也可以采用自己的检查。
+## 文件回读
 
-可根据问题选择量测：已知长度的打印比例、关键尺寸的跨格式回读、指定文字/图层是否保留、某次源修改是否反映到输出。是否需要这些检查及报告由本次任务决定，工具通过不等于设计或视觉质量通过。
+`audit <file|directory|project.yml> --out <report-dir>` 是可选技术检查。
 
-需要保存人工判断与文件版本关联时，另有 [可选证据检查器](quality-review.md)。没有任何检查命令是交付的必经步骤。
+- 单文件支持 DXF、STEP/STP、GLB/GLTF、3DM、DAE、PDF、SVG，检查能否回读及相应结构；不要求同名配套文件、固定目录或毫米单位。
+- 随库目录可按已声明的输出核对文件是否缺失、部分几何与单位是否对应、引用文件是否更新。图纸只输出 PDF 时不会要求 DXF；模型只输出 GLB 时不会要求 STEP/3DM/DAE。
+- `audit project.yml --outputs <actual-directory> --out <report-dir>` 额外比对源版本；省略 outputs 保留旧版同级 outputs 的查找约定。
+- 目录没有随库报告时，对支持的文件做独立回读。自定义检查也可直接用各工具原生 API。
+
+数值、可读性和文件版本检查不判断构图、美感、建筑合理性或用户任务是否完成。检查具体几何、实际打印比例或视觉效果时，可量测对应对象、查看导出图像或与用户参考比较，不需要建立统一验收表。
+
+GLB 的米制与 Y 向上依据 [glTF 坐标系](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units)。0.4 修复了旧交换器只换单位、没有换轴的问题；旧版本文件需重新导出或按其实际坐标适配，不能只检查原始顶点包围盒。

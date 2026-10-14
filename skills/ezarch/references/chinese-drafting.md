@@ -20,7 +20,7 @@
 | 尺寸 | §11.1–11.3 | 真值、细尺寸线、斜短线；界线离轮廓≥2mm，超线2–3mm；分尺寸靠近图形、总尺寸置于外侧，间距按图面组织 |
 | 标高 | §11.8 | 三角尖端对应高度；m、三位小数；零为±0.000，正值不写＋ |
 
-参数见 assets/drafting/china-conventions.yml，Drawing 使用的 pen 可按项目覆写。附带字体为开放仿宋风格 TTF，并非微软字体或工程 SHX。字体选择由任务决定；其他字体和符号可直接通过 ezdxf/SVG 或项目适配器使用。
+样式参数见 assets/drafting/china-conventions.yml。Drawing 的 style 可覆写 pens_mm、axis_circle_diameter_mm、index_circle_diameter_mm、north_circle_diameter_mm、section_position_length_mm、section_direction_length_mm、excluded_axis_labels，这些参数实际用于生成图元。线宽分配、默认字体和采用的具体符号尺寸是本库的样式选择；是否满足适用条文仍按本次要求判断。附带字体为开放仿宋风格 TTF，并非微软字体或工程 SHX。字体选择由任务决定；其他字体和符号可直接通过 ezdxf/SVG 或项目适配器使用。
 
 ## 技术图可涉及的内容（按阶段选用）
 
@@ -34,6 +34,14 @@ Drawing.furniture 提供普通可编辑 chair/sofa/bed/table/counter/cabinet/she
 
 ## 使用
 
-`ezarch.drafting.Drawing(bounds, scale, title, number)` 独立于三维。bounds 包含注释区（世界mm）；poly/text/axis/dimension/chain/level/north/section_mark/index/leader/furniture 生成同源 DXF/PDF/SVG。pen与文字高度为纸面mm，物体坐标为模型mm。
+`ezarch.drafting.Drawing(bounds, scale, title, number, style=None, font=None)` 独立于三维。bounds 包含注释区（世界mm）；poly/text/axis/dimension/chain/level/north/section_mark/index/leader/furniture 生成同源 DXF/PDF/SVG。pen与文字高度为纸面mm，物体坐标为模型mm。
 
 模型视图可设置 drafting 命令列表，op为以上方法名，其余键为方法参数；drawing_bounds显式预留标注区。所有标注由项目按任务组织，不自动把相同符号撒到每张图。
+
+## 取用图元时的技术区别
+
+门的开向可用叶片线和圆弧表达，窗框可用平行线/块表达；楼梯踏步、平台、方向箭头、剖切折断与上下层投影分别处理，避免把剖切几何自动当成完整建筑符号。填充的边界、孔洞与图面比例影响材料表达。
+
+直接 ezdxf 操作可用 `msp.add_arc(hinge, radius, start_angle, end_angle)`、`doc.blocks.new(name)` 与 `msp.add_blockref(name, insert)`；块的原点、朝向和尺寸在项目内定义。填充用 `msp.add_hatch()` 后为 `hatch.paths` 添加外轮廓和孔洞，`hatch.set_pattern_fill(...)` 的比例和角度按该图控制。它们是工具操作，不声称任一通用门窗/家具图块属于国家标准图样。
+
+建筑面积、净面积、门净宽、结构标高与完成面标高各自有定义；具体尺寸依据和符号含义需对应项目。对当前图纸有影响的核对可直接量测与看图，不需要扩充为全项目规范清单。

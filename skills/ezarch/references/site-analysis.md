@@ -1,10 +1,10 @@
-# 地图与分析工具
+# 地图与分析参考
 
 数据、问题与参考内容决定分析方法和表达，可使用 SVG、表格、地理数据、图像坐标或自定义脚本。这里提供可选工具与计算边界，不要求每图包含同一套步骤或设计响应。
 
 ## 数据与坐标
 
-用户提供的规划图、调查或现有数据可直接作为输入。需要补充公开道路/建筑时，可查 OpenStreetMap：[署名](https://www.openstreetmap.org/copyright)、[Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API)。查询范围和使用方式受对应服务规则约束。
+用户提供的规划图、调查或现有数据可直接作为输入。需要补充公开道路/建筑时，可查 OpenStreetMap：[署名](https://www.openstreetmap.org/copyright)、[Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API)。查询范围和使用方式受对应服务规则约束。OSM 只是示例来源；政府规划、统计、论文、其他地图和用户资料都可按问题选择，必要时主动联网扩展资料与方法。
 
 图像坐标适合栅格描绘和关系表达；真实距离/面积计算需要相应尺度或投影。经纬度不是米，图像对齐残差也不是地面测量精度。SVG 的 viewBox 与打印纸面尺寸可分别设置，无需改成建筑模型的毫米坐标。
 

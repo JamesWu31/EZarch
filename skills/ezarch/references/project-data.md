@@ -1,6 +1,6 @@
 # Optional project.yml API
 
-This is the input contract for the optional `model`, `views`, `brief` and `diagram` helpers, not a universal project schema. Use it only when invoking those helpers. Existing files, direct ezdxf/bpy/CadQuery calls, SVG, CSV, image coordinates and other project structures do not need to adopt it. No task.yml or quality.yml is required.
+This is the input contract for the optional `model`, `views`, `brief` and `diagram` helpers, not a universal project schema. Use it only when invoking those helpers. Existing files, direct ezdxf/bpy/CadQuery calls, SVG, CSV, image coordinates and other project structures do not need to adopt it.
 
 Within this API, lengths/positions are millimetres and colors are RGB components from 0 to 1. IDs are filename-safe; stable IDs help when using its cross-file comparisons. The example illustrates fields, not a required building type, design method or deliverable set.
 
@@ -59,7 +59,7 @@ Dimensions: `id`, `p1`, `p2`, `base`, `view` (kind or exact view ID). Built-in d
 
 ## Views, cameras and rendering
 
-Views have ID/kind/title/scale; optional paper_mm, margin and exclude categories. Plans set cut_z. Sections set axis x/y and at. Elevations/axons set normal/xdir. Curves are sampled with controlled geometric tolerance for polyline presentation; original exact shapes remain in STEP.
+Views have ID/kind/title/scale; optional paper_mm, margin and exclude categories. `decoration: true` opts into the example footer; default views contain no footer. `font` selects a font file relative to the project YAML (or an absolute path); rich drafting views accept a `style` parameter dictionary. Plans set cut_z. Sections set axis x/y and at. Elevations/axons set normal/xdir. Curves are sampled with controlled geometric tolerance for polyline presentation; original exact shapes remain in STEP.
 
 Cameras: position/target in mm, lens in mm, aspect, optional orthographic:true and ortho_scale in mm. `render` config supports sun_elevation/sun_rotation in degrees, sun_energy, sky_strength and exposure. Lighting is a visual study unless a location/time-based simulation is explicitly provided.
 

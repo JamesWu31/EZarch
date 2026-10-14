@@ -17,10 +17,11 @@ def args():
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--camera")
-    parser.add_argument("--quality", choices=["preview", "final"], default="preview")
+    parser.add_argument("--quality", choices=["preview", "final"])
     parser.add_argument("--width", type=int)
     parser.add_argument("--samples", type=int)
     parser.add_argument("--source-units", choices=["mm", "m"])
+    parser.add_argument("--save-blend", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 
@@ -430,30 +431,39 @@ def main():
     started = time.time()
     data, bounds_report = load(options.input, options.source_units)
     scene = bpy.context.scene
-    if not data.get("preserve_scene"):
+    preserve = data.get("preserve_scene", False)
+    quality = options.quality or "preview"
+    if not preserve:
         scene.unit_settings.system = "METRIC"
         scene.unit_settings.scale_length = 1
     config = data.get("render", {})
-    if not data.get("preserve_scene"):
+    if not preserve:
         lighting(config)
-    scene.render.engine = "CYCLES"
-    scene.cycles.samples = options.samples or (24 if options.quality == "preview" else 128)
-    scene.cycles.use_denoising = True
-    scene.cycles.adaptive_threshold = .025 if options.quality == "preview" else .012
-    scene.cycles.max_bounces = 10
-    scene.cycles.diffuse_bounces = 4
-    scene.cycles.glossy_bounces = 4
-    scene.cycles.transmission_bounces = 8
-    scene.cycles.transparent_max_bounces = 8
-    scene.cycles.seed = 7123
-    scene.view_settings.view_transform = "AgX"
-    scene.view_settings.look = "AgX - Medium High Contrast"
-    scene.view_settings.exposure = config.get("exposure", -.5)
-    scene.render.image_settings.file_format = "PNG"
-    scene.render.image_settings.color_mode = "RGB"
-    scene.render.image_settings.color_depth = "8"
-    scene.render.film_transparent = config.get("transparent", False)
-    backend, device_report = choose_device()
+        scene.render.engine = "CYCLES"
+        scene.cycles.use_denoising = True
+        scene.cycles.adaptive_threshold = .025 if quality == "preview" else .012
+        scene.cycles.max_bounces = 10
+        scene.cycles.diffuse_bounces = 4
+        scene.cycles.glossy_bounces = 4
+        scene.cycles.transmission_bounces = 8
+        scene.cycles.transparent_max_bounces = 8
+        scene.cycles.seed = 7123
+        scene.view_settings.view_transform = "AgX"
+        scene.view_settings.look = "AgX - Medium High Contrast"
+        scene.view_settings.exposure = config.get("exposure", -.5)
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.image_settings.color_mode = "RGB"
+        scene.render.image_settings.color_depth = "8"
+        scene.render.film_transparent = config.get("transparent", False)
+    if not preserve or options.quality or options.samples is not None:
+        count = options.samples or (24 if quality == "preview" else 128)
+        if scene.render.engine == "CYCLES":
+            scene.cycles.samples = count
+        elif scene.render.engine == "BLENDER_EEVEE_NEXT":
+            scene.eevee.taa_render_samples = count
+    backend, device_report = ("SCENE_SETTINGS", {}) if preserve else choose_device()
+    if scene.render.image_settings.file_format in {"FFMPEG", "AVI_JPEG", "AVI_RAW"}:
+        raise ValueError("Still rendering needs an image output format; set one in the source scene")
     cameras = data.get("cameras", [])
     if not cameras and scene.camera:
         cameras = [{"id": scene.camera.name, "existing": scene.camera}]
@@ -469,37 +479,58 @@ def main():
     selected = cameras if options.camera == "all" else [c for c in cameras if c["id"] == options.camera] if options.camera else cameras[:1]
     if not selected:
         raise ValueError(f"Unknown camera {options.camera}")
-    output = []
+    output, used_names = [], set()
     for spec in selected:
-        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", spec["id"]):
-            raise ValueError("Camera IDs must be safe filenames")
+        name = output_name(spec["id"], used_names)
         scene.camera = spec.get("existing") or camera_from_spec(spec)
-        scene.view_settings.exposure = spec.get("exposure", config.get("exposure", -.5))
-        scene.render.resolution_x = options.width or (1100 if options.quality == "preview" else 2600)
-        ratio = spec.get("aspect", 1.5)
-        scene.render.resolution_y = round(scene.render.resolution_x / ratio)
-        scene.render.resolution_percentage = 100
-        scene.render.filepath = str(options.out / (spec["id"] + ".png"))
+        if not preserve:
+            scene.view_settings.exposure = spec.get("exposure", config.get("exposure", -.5))
+        if not preserve or options.width or options.quality:
+            scene.render.resolution_x = options.width or (1100 if quality == "preview" else 2600)
+            scene.render.resolution_y = round(scene.render.resolution_x / spec.get("aspect", 1.5))
+            scene.render.resolution_percentage = 100
+        filename = name + scene.render.file_extension
+        scene.render.filepath = str(options.out / filename)
         print(f"EZARCH_RENDER {spec['id']} {scene.render.resolution_x}x{scene.render.resolution_y} {backend}", flush=True)
         try:
             bpy.ops.render.render(write_still=True)
         except RuntimeError:
-            if backend == "CPU":
+            if preserve or backend == "CPU" or scene.render.engine != "CYCLES":
                 raise
             backend = "CPU_AFTER_GPU_FAILURE"
             scene.cycles.device = "CPU"
             bpy.ops.render.render(write_still=True)
-        output.append({"file": spec["id"] + ".png", "camera": spec["id"],
-                       "width": scene.render.resolution_x, "height": scene.render.resolution_y})
-    bpy.ops.file.pack_all()
-    bpy.ops.wm.save_as_mainfile(filepath=str(options.out / "scene.blend"), compress=True)
+        output.append({"file": filename, "camera": spec["id"],
+                       "width": scene.render.resolution_x * scene.render.resolution_percentage // 100,
+                       "height": scene.render.resolution_y * scene.render.resolution_percentage // 100})
+    if options.save_blend:
+        if not preserve:
+            bpy.ops.file.pack_all()
+        bpy.ops.wm.save_as_mainfile(filepath=str(options.out / "scene.blend"), compress=True)
     report = {"blender": bpy.app.version_string, "backend": backend, "device_probe": device_report,
               "samples": scene.cycles.samples, "source_project_hash": data.get("project_hash"),
               "source_bounds": bounds_report, "images": output, "elapsed_s": round(time.time() - started, 2),
-              "decorative_elements": len(data.get("landscape", [])), "color_management": "AgX",
+              "decorative_elements": len(data.get("landscape", [])),
+              "color_management": scene.view_settings.view_transform,
+              "engine": scene.render.engine, "preserved_scene_settings": preserve,
+              "saved_scene": "scene.blend" if options.save_blend else None,
               "public_assets": data.get("imported_assets", [])}
     (options.out / "render-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print("EZARCH_RENDER_COMPLETE", flush=True)
+
+
+def output_name(name, used):
+    """Portable output filename without renaming camera datablocks."""
+    import hashlib
+    clean = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip(' .') or 'camera'
+    reserved = {"CON", "PRN", "AUX", "NUL", *[f"{p}{i}" for p in ("COM", "LPT") for i in range(1, 10)]}
+    if clean.split('.')[0].upper() in reserved:
+        clean = '_' + clean
+    clean = clean[:100]
+    if clean != name or clean.casefold() in used:
+        clean += '-' + hashlib.sha256(name.encode()).hexdigest()[:10]
+    used.add(clean.casefold())
+    return clean
 
 
 if __name__ == "__main__":

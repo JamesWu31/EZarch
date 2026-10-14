@@ -16,25 +16,29 @@ from .graphics import Canvas
 from .project import skill_root, write_json
 
 INK = "#26312e"
-PENS = yaml.safe_load((skill_root() / "assets/drafting/china-conventions.yml").read_text(encoding="utf-8"))["pens_mm"]
+DEFAULT_STYLE = yaml.safe_load((skill_root() / "assets/drafting/china-conventions.yml").read_text(encoding="utf-8"))
 
 
 class Drawing:
-    def __init__(self, bounds, scale=100, title="", number="", margin=12):
+    def __init__(self, bounds, scale=100, title="", number="", margin=12, *, decoration=False,
+                 style=None, font=None):
         if scale <= 0 or len(bounds) != 4 or bounds[2] <= bounds[0] or bounds[3] <= bounds[1]:
             raise ValueError("Positive scale and valid drawing bounds required")
         self.bounds, self.scale, self.margin = list(bounds), float(scale), float(margin)
         self.title, self.number = title, number
+        self.decoration = decoration
+        self.style = {**DEFAULT_STYLE, **(style or {})}
+        self.pens = {**DEFAULT_STYLE["pens_mm"], **(style or {}).get("pens_mm", {})}
         self.width = (bounds[2] - bounds[0]) / scale + margin * 2
-        self.height = (bounds[3] - bounds[1]) / scale + margin * 2 + 19
-        self.canvas = Canvas(self.width, self.height)
+        self.height = (bounds[3] - bounds[1]) / scale + margin * 2 + (19 if decoration else 0)
+        self.canvas = Canvas(self.width, self.height, font=font)
         self.doc = ezdxf.new("R2010")
         self.doc.units = ezdxf.units.MM
         self.doc.header["$MEASUREMENT"] = 1
-        self.doc.styles.new("EZARCH", dxfattribs={"font": "EZarchFang.ttf"})
+        self.doc.styles.new("EZARCH", dxfattribs={"font": self.canvas.font_path.name})
         self.doc.linetypes.new("EZ-GRID", dxfattribs={"description": "Axis centre line",
                                "pattern": [16 * scale, 10 * scale, -2 * scale, 2 * scale, -2 * scale]})
-        for name, pen in PENS.items():
+        for name, pen in self.pens.items():
             self.doc.layers.new(name, dxfattribs={"color": 7, "lineweight": round(pen * 100)})
         self.ms = self.doc.modelspace()
         self.dimensions, self.symbols = [], []
@@ -48,7 +52,7 @@ class Drawing:
         if len(points) < 2:
             return
         self.canvas.poly([self.paper(p) for p in points], close=close, fill=fill,
-                         stroke=color, width=width if width is not None else PENS[layer], dash=dash)
+                         stroke=color, width=width if width is not None else self.pens[layer], dash=dash)
         attrs = {"layer": layer}
         if dash:
             attrs["linetype"] = "EZ-GRID"
@@ -65,7 +69,7 @@ class Drawing:
 
     def circle(self, centre, radius, layer="A-ANNOTATION", color=INK, width=None):
         x, y = self.paper(centre)
-        self.canvas.circle(x, y, radius / self.scale, stroke=color, width=width or PENS[layer])
+        self.canvas.circle(x, y, radius / self.scale, stroke=color, width=width or self.pens[layer])
         self.ms.add_circle(centre, radius, dxfattribs={"layer": layer})
 
     def text(self, point, text, size=2.5, align="center", color=INK, rotation=0, layer="A-ANNOTATION"):
@@ -78,7 +82,7 @@ class Drawing:
                          "layer": layer, "rotation": rotation}).set_placement(point, align=alignment)
 
     def axis(self, name, orientation, at, start, end, bubbles="both"):
-        if str(name) in {"I", "O", "Z"}:
+        if str(name) in self.style["excluded_axis_labels"]:
             raise ValueError("I, O and Z are not used as Chinese drawing grid labels")
         s = self.scale
         if orientation == "x":  # constant x, vertical line
@@ -90,7 +94,7 @@ class Drawing:
         self.line(a, b, layer="A-GRID", color="#929996", dash=[10, 2, 2, 2])
         for p, end_name in [(a, "start"), (b, "end")]:
             if bubbles in ("both", end_name):
-                self.circle(p, 4 * s)
+                self.circle(p, self.style["axis_circle_diameter_mm"] / 2 * s)
                 self.text(p, name, 3.5)
         self.symbols.append({"kind": "axis", "name": name, "orientation": orientation, "at_mm": at})
 
@@ -148,10 +152,11 @@ class Drawing:
         def p(x, y):
             return [point[0] + s * (x * math.cos(a) - y * math.sin(a)),
                     point[1] + s * (x * math.sin(a) + y * math.cos(a))]
-        self.circle(point, 12 * s)
-        self.poly([p(0, 12), p(-1.5, -9), p(0, -6)], close=True, fill=INK, layer="A-ANNOTATION")
-        self.poly([p(0, 12), p(1.5, -9), p(0, -6)], close=True, layer="A-ANNOTATION")
-        self.text(p(0, 16), "N", 3.5)
+        factor = self.style["north_circle_diameter_mm"] / 24
+        self.circle(point, 12 * factor * s)
+        self.poly([p(0, 12 * factor), p(-1.5 * factor, -9 * factor), p(0, -6 * factor)], close=True, fill=INK, layer="A-ANNOTATION")
+        self.poly([p(0, 12 * factor), p(1.5 * factor, -9 * factor), p(0, -6 * factor)], close=True, layer="A-ANNOTATION")
+        self.text(p(0, 16 * factor), "N", 3.5)
         self.symbols.append({"kind": "north", "angle": angle})
 
     def section_mark(self, a, b, name, direction=1):
@@ -161,13 +166,14 @@ class Drawing:
             raise ValueError("Section endpoints must differ")
         t, n, s = [dx / length, dy / length], [-dy / length * direction, dx / length * direction], self.scale
         for p, sign in [(a, 1), (b, -1)]:
-            self.line(p, [p[i] + t[i] * sign * 7 * s for i in range(2)], layer="A-CUT")
-            self.line(p, [p[i] + n[i] * 5 * s for i in range(2)], layer="A-CUT")
+            self.line(p, [p[i] + t[i] * sign * self.style["section_position_length_mm"] * s for i in range(2)], layer="A-CUT")
+            self.line(p, [p[i] + n[i] * self.style["section_direction_length_mm"] * s for i in range(2)], layer="A-CUT")
             self.text([p[i] + n[i] * 8 * s for i in range(2)], name, 3.5)
         self.symbols.append({"kind": "section", "name": name, "a": a, "b": b, "direction": direction})
 
-    def index(self, point, detail, sheet, radius=5):
+    def index(self, point, detail, sheet, radius=None):
         x, y = point
+        radius = self.style["index_circle_diameter_mm"] / 2 if radius is None else radius
         r = radius * self.scale
         self.circle(point, r)
         self.line([x - r, y], [x + r, y], layer="A-ANNOTATION")
@@ -221,12 +227,37 @@ class Drawing:
         self.symbols.append({"kind": "furniture", "type": kind, "origin": origin,
                              "size": size, "rotation": rotation})
 
-    def save(self, stem: Path, dpi=150, metadata=None):
+    def save(self, stem: Path, dpi=150, metadata=None, formats=None):
         import shutil
-        font_dir = stem.parent / "fonts"
-        font_dir.mkdir(parents=True, exist_ok=True)
-        for filename in ["EZarchFang.ttf", "COPYING", "SOURCE.md"]:
-            shutil.copy2(skill_root() / "assets/fonts" / filename, font_dir / filename)
+        formats = set(["dxf", "svg", "pdf", "png"] if formats is None else formats)
+        if not formats or formats - {"dxf", "svg", "pdf", "png"}:
+            raise ValueError("Drawing formats: dxf, svg, pdf, png")
+        if "dxf" in formats and not self.canvas.custom_font:
+            font_dir = stem.parent / "fonts"
+            font_dir.mkdir(parents=True, exist_ok=True)
+            for filename in ["EZarchFang.ttf", "COPYING", "SOURCE.md"]:
+                shutil.copy2(skill_root() / "assets/fonts" / filename, font_dir / filename)
+        original_items = list(self.canvas.items)
+        meta = {**(metadata or {}), "title": self.title, "scale": self.scale,
+                "dimensions": self.dimensions, "symbols": self.symbols,
+                "formats": sorted(formats), "decoration": self.decoration}
+        if self.decoration:
+            meta.update(self.add_decoration())
+        try:
+            report = self.canvas.save(stem, dpi=dpi, metadata=meta, formats=formats - {"dxf"})
+        finally:
+            self.canvas.items = original_items
+        if "dxf" in formats:
+            if self.doc.audit().has_errors:
+                raise ValueError("Invalid DXF")
+            self.doc.set_modelspace_vport(height=self.bounds[3] - self.bounds[1],
+                center=((self.bounds[0] + self.bounds[2]) / 2, (self.bounds[1] + self.bounds[3]) / 2))
+            self.doc.saveas(stem.with_suffix(".dxf"))
+        write_json(stem.with_suffix(".draft.json"), meta)
+        return report
+
+    def add_decoration(self):
+        """Optional title/footer example; projects can compose their own frame instead."""
         y = self.height - 13
         self.canvas.line(self.margin, y - 5, self.width - self.margin, y - 5, width=.18)
         self.canvas.text(self.margin, y, f"{self.number}  {self.title}", size=4)
@@ -237,13 +268,4 @@ class Drawing:
             self.canvas.rect(self.margin + i * length / 4, y + 4, length / 4, 1,
                              fill=INK if i % 2 == 0 else "#ffffff", width=.13)
         self.canvas.text(self.margin + length + 2, y + 5.5, f"{bar_model / 1000:g} m", size=2.5)
-        meta = {**(metadata or {}), "title": self.title, "scale": self.scale, "dimensions": self.dimensions,
-                "symbols": self.symbols, "scale_bar_model_mm": bar_model, "scale_bar_paper_mm": length}
-        report = self.canvas.save(stem, dpi=dpi, metadata=meta)
-        if self.doc.audit().has_errors:
-            raise ValueError("Invalid DXF")
-        self.doc.set_modelspace_vport(height=self.bounds[3] - self.bounds[1],
-            center=((self.bounds[0] + self.bounds[2]) / 2, (self.bounds[1] + self.bounds[3]) / 2))
-        self.doc.saveas(stem.with_suffix(".dxf"))
-        write_json(stem.with_suffix(".draft.json"), meta)
-        return report
+        return {"scale_bar_model_mm": bar_model, "scale_bar_paper_mm": length}

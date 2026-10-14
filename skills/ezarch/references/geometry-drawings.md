@@ -4,13 +4,13 @@
 
 ## 独立二维
 
-`ezarch.drafting.Drawing(bounds, scale, title, number)` 不依赖三维模型，可输出同源 DXF/PDF/SVG/PNG。bounds、物体坐标以模型 mm 输入；scale 为比例分母，文字和笔宽用纸面 mm。方法包括 poly、text、axis、dimension、chain、level、north、section_mark、index、leader、furniture，签名见 `src/ezarch/drafting.py`。适用符号参考见 [中国制图](chinese-drafting.md)。
+`ezarch.drafting.Drawing(bounds, scale, title, number, decoration=False, style=None, font=None)` 不依赖三维模型，可输出同源 DXF/PDF/SVG/PNG。bounds、物体坐标以模型 mm 输入；scale 为比例分母，文字和笔宽用纸面 mm。方法包括 poly、text、axis、dimension、chain、level、north、section_mark、index、leader、furniture，签名见 `src/ezarch/drafting.py`。默认不添加图框或比例尺；`decoration=True` 可选用示例页脚，也可自行组合图框。font 为字体文件路径，style 覆写所需制图参数。适用符号参考见 [中国制图](chinese-drafting.md)。
 
-Drawing 是常规技术图的便利封装。需要特殊线型、块、斜向/径向尺寸或其他字体时，可直接调用 ezdxf 创建实体、尺寸和文字样式；已有 CAD 也可保留其原图层和块结构。无需先转换成 project.yml。
+Drawing 是常规技术图的便利封装。需要特殊线型、块、斜向/径向尺寸时，可直接调用 ezdxf 创建实体、尺寸和文字样式；已有 CAD 也可保留其原图层和块结构。无需先转换成 project.yml。
 
 ## 精确实体与投影
 
-`model <project.yml> --out <dir>` 从有限的便捷构件生成 OCCT 实体、STEP 和网格交换；该命令的参数见 [接口说明](project-data.md)。复杂几何可直接用 CadQuery 的 loft/sweep/Boolean，或用 Blender 建模，不受构件列表限制。
+`model <project.yml> --formats step glb --out <dir>` 从有限的便捷构件生成所选格式；省略 formats 默认仅 STEP。该命令的参数见 [接口说明](project-data.md)。复杂几何可直接用 CadQuery 的 loft/sweep/Boolean，或用 Blender 建模，不受构件列表限制。
 
 若要复用随库投影，可在项目 Python 中构造 `Part(id, shape, material, category)`，使用 `mesh_scene` 和 `extract_view`；也可使用其他投影方法。`views <project.yml> --only <id...> --out <dir>` 提供真实平面求交和隐藏线输出。
 
@@ -28,4 +28,8 @@ Drawing 是常规技术图的便利封装。需要特殊线型、块、斜向/�
 
 随库模型/视图使用 mm 和真实尺寸 DXF；GLB/Blender 适配器转换为 m。这是该接口的单位约定，其他工具或数据可使用自己的单位。网格化和曲线采样容差与源数据可信精度不同。
 
-`views` 一次会保存 DXF、SVG、PDF、PNG、几何记录和报告。它的输出集合不是用户的必交清单；需要更少或不同格式时，可选用底层 API。技术图若改变打印比例，相应比例标签也要对应实际输出。
+`views --formats dxf pdf` 可选择输出，省略 formats 保留 DXF/SVG/PDF/PNG 便利默认值。附带几何记录与报告供检查使用。视图默认不带页脚，`decoration: true` 开启示例页脚；已有模板可单独合成。技术图若改变打印比例，相应比例标签也要对应实际输出。
+
+## 可运行的原生操作
+
+创建或修改已有 DXF、通过 CadQuery loft/cut/section 出图，见 [独立操作例子](edit-existing.md)。这些例子可脱离 project.yml 使用。

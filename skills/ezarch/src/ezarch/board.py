@@ -10,14 +10,19 @@ from .graphics import Canvas
 from .project import write_json
 
 
-def compose(template: Path, out: Path):
+def compose(template: Path, out: Path, formats=None):
+    formats = set(["svg", "pdf", "png"] if formats is None else formats)
+    if not formats or formats - {"svg", "pdf", "png"}:
+        raise ValueError("Board formats: svg, pdf, png")
     data = yaml.safe_load(template.read_text(encoding="utf-8"))
     out.mkdir(parents=True, exist_ok=True)
     reports = []
     final = fitz.open()
     for i, sheet in enumerate(data["sheets"]):
         width, height = sheet.get("size_mm", [594, 841])
-        canvas = Canvas(width, height, sheet.get("background", "#ffffff"))
+        font = sheet.get("font")
+        canvas = Canvas(width, height, sheet.get("background", "#ffffff"),
+                        font=template.parent / font if font else None)
         slots, image_checks, text_boxes = [], [], []
         for item in sheet["items"]:
             kind = item["type"]
@@ -28,7 +33,8 @@ def compose(template: Path, out: Path):
                         raise ValueError("Text box exceeds page")
                     info = canvas.text_box(x, y, item["w"], item["h"], item["text"],
                         size=item.get("size", 3), leading=item.get("leading"),
-                        color=item.get("color", "#343930"), bold=item.get("bold", False))
+                        color=item.get("color", "#343930"), bold=item.get("bold", False),
+                        rotation=item.get("rotation", 0))
                     text_boxes.append({"rect_mm": [x, y, item["w"], item["h"]],
                                        "allow_overlap": item.get("allow_overlap", False), **info})
                     continue
@@ -37,7 +43,7 @@ def compose(template: Path, out: Path):
                 for n, line in enumerate(lines):
                     canvas.text(x, y + n * item.get("leading", size * 1.55), line, size=size,
                                 color=item.get("color", "#343930"), bold=item.get("bold", False),
-                                align=item.get("align", "left"))
+                                align=item.get("align", "left"), rotation=item.get("rotation", 0))
                 continue
             if kind == "line":
                 canvas.line(x, y, item["x2"], item["y2"], stroke=item.get("color", "#a7ad9f"), width=item.get("width", .2))
@@ -89,16 +95,19 @@ def compose(template: Path, out: Path):
                 px, py, pw, ph = other["rect_mm"]
                 if min(x + w, px + pw) - max(x, px) > .01 and min(y + h, py + ph) - max(y, py) > .01:
                     raise ValueError("Text box overlaps another board content slot")
-        report = canvas.save(stem, dpi=data.get("preview_dpi", 100), metadata={"title": sheet.get("title", data.get("title", "EZarch"))})
+        report = canvas.save(stem, dpi=data.get("preview_dpi", 100),
+                             metadata={"title": sheet.get("title", data.get("title", "EZarch"))}, formats=formats)
         report.update(slots=slots, image_checks=image_checks, text_boxes=text_boxes)
         if report["text_overflow"]:
             raise ValueError(f"Board text overflow: {report['text_overflow']}")
         if report["geometry_overflow"]:
             raise ValueError("Board linework extends beyond the page")
-        with fitz.open(stem.with_suffix(".pdf")) as page_pdf:
-            final.insert_pdf(page_pdf)
+        if "pdf" in formats:
+            with fitz.open(stem.with_suffix(".pdf")) as page_pdf:
+                final.insert_pdf(page_pdf)
         reports.append(report)
-    final.save(out / "presentation.pdf", garbage=4, deflate=True)
+    if "pdf" in formats:
+        final.save(out / "presentation.pdf", garbage=4, deflate=True)
     final.close()
     write_json(out / "board-report.json", reports)
-    return {"pages": len(reports), "pdf": "presentation.pdf", "sheets": reports}
+    return {"pages": len(reports), "pdf": "presentation.pdf" if "pdf" in formats else None, "sheets": reports}

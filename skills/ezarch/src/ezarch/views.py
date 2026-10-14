@@ -137,9 +137,13 @@ def extract_view(parts: list[Part], view: dict):
             "normal": normal, "xdir": x.tolist(), "up": y.tolist(), "origin": origin}
 
 
-def save_view(project: Project, data: dict, view: dict, stem: Path):
+def save_view(project: Project, data: dict, view: dict, stem: Path, formats=None):
+    formats = set(["dxf", "pdf", "svg", "png"] if formats is None else formats)
+    view = dict(view)
+    if view.get("font"):
+        view["font"] = str(project._base_dir / view["font"])
     if view.get("drafting") is not None:
-        return save_annotated_view(project, data, view, stem)
+        return save_annotated_view(project, data, view, stem, formats)
     import ezdxf
     from ezdxf.enums import TextEntityAlignment
     all_points = [p for line in data["lines"] for p in line] + [p for c in data["cuts"] for p in c["outer"]]
@@ -149,13 +153,13 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
     minx, miny, maxx, maxy = min(xs), min(ys), max(xs), max(ys)
     scale = float(view.get("scale", 100))
     margin = float(view.get("margin", 22))
-    title_area = 22
+    title_area = 22 if view.get("decoration", False) else 0
     width, height = (maxx - minx) / scale + 2 * margin, (maxy - miny) / scale + 2 * margin + title_area
     if view.get("paper_mm"):
         width, height = view["paper_mm"]
         if (maxx - minx) / scale + 2 * margin > width or (maxy - miny) / scale + 2 * margin + title_area > height:
             raise ValueError("Requested scale does not fit the paper; never silently shrink a scaled drawing")
-    canvas = Canvas(width, height)
+    canvas = Canvas(width, height, font=view.get("font"))
     ox = (width - (maxx - minx) / scale) / 2
     oy = margin
 
@@ -169,7 +173,7 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
     for name, lw in [("A-VISIBLE", 18), ("A-CUT", 40), ("A-ANNOTATION", 13),
                      ("A-DIM", 13), ("A-FURNITURE", 13), ("A-LANDSCAPE", 13)]:
         doc.layers.new(name, dxfattribs={"color": 7, "lineweight": lw})
-    doc.styles.new("EZARCH", dxfattribs={"font": "EZarchFang.ttf"})
+    doc.styles.new("EZARCH", dxfattribs={"font": canvas.font_path.name})
     ms = doc.modelspace()
 
     def path(points, layer="A-VISIBLE", weight=.14, color="#52564f", close=False, fill=None):
@@ -299,35 +303,42 @@ def save_view(project: Project, data: dict, view: dict, stem: Path):
         else:
             raise ValueError("Dimension annotations currently support horizontal/vertical endpoints; use a custom vector annotation for oblique dimensions")
         dims.append({"id": d.get("id"), "measured_mm": value, "p1": a, "p2": b})
-    baseline = height - 12
-    canvas.line(margin, height - title_area + 1, width - margin, height - title_area + 1, stroke="#a8ad9e", width=.15)
-    canvas.text(margin, baseline, view.get("title", view["id"]), size=3.1, bold=True)
-    canvas.text(width - margin, baseline, f"1:{scale:g}  /  mm", size=2.3, align="right", color="#747b6b")
-    # Metric scale bar is a measurable independent export control.
-    available = min(50, (width - 2 * margin) * .75) * scale
-    power = 10 ** floor(log10(available))
-    bar_model_mm = max(v * power for v in (.1, .2, .5, 1, 2, 5) if v * power <= available)
-    bar_mm = bar_model_mm / scale
-    bx, by = margin, height - 5
-    for i in range(5):
-        canvas.rect(bx + i * bar_mm / 5, by, bar_mm / 5, .9,
-                    fill="#343930" if i % 2 == 0 else "#ffffff", stroke="#343930", width=.08)
-    bar_label = f"{bar_model_mm / 1000:g} m" if bar_model_mm >= 1000 else f"{bar_model_mm:g} mm"
-    canvas.text(bx + bar_mm + 2, by + .8, bar_label, size=1.8)
+    bar_mm = bar_model_mm = None
+    if title_area:
+        baseline = height - 12
+        canvas.line(margin, height - title_area + 1, width - margin, height - title_area + 1, stroke="#a8ad9e", width=.15)
+        canvas.text(margin, baseline, view.get("title", view["id"]), size=3.1, bold=True)
+        canvas.text(width - margin, baseline, f"1:{scale:g}  /  mm", size=2.3, align="right", color="#747b6b")
+        # Metric scale bar is a measurable independent export control.
+        available = min(50, (width - 2 * margin) * .75) * scale
+        power = 10 ** floor(log10(available))
+        bar_model_mm = max(v * power for v in (.1, .2, .5, 1, 2, 5) if v * power <= available)
+        bar_mm = bar_model_mm / scale
+        bx, by = margin, height - 5
+        for i in range(5):
+            canvas.rect(bx + i * bar_mm / 5, by, bar_mm / 5, .9,
+                        fill="#343930" if i % 2 == 0 else "#ffffff", stroke="#343930", width=.08)
+        bar_label = f"{bar_model_mm / 1000:g} m" if bar_model_mm >= 1000 else f"{bar_model_mm:g} mm"
+        canvas.text(bx + bar_mm + 2, by + .8, bar_label, size=1.8)
     meta = {"title": view.get("title", view["id"]), "project_hash": fingerprint(project),
             "scale": scale, "bounds_mm": [minx, miny, maxx, maxy],
             "paper_origin_mm": [ox, oy], "dimensions": dims, "scale_bar_paper_mm": bar_mm,
             "scale_bar_model_mm": bar_model_mm}
-    report = canvas.save(stem, metadata=meta)
+    meta.update(formats=sorted(formats), decoration=bool(title_area))
+    if not title_area:
+        meta.pop("scale_bar_paper_mm", None)
+        meta.pop("scale_bar_model_mm", None)
+    report = canvas.save(stem, metadata=meta, formats=formats - {"dxf"})
     doc.set_modelspace_vport(height=maxy - miny + 2 * margin * scale, center=((minx + maxx) / 2, (miny + maxy) / 2))
     if doc.audit().has_errors:
         raise RuntimeError("Generated DXF failed structural audit")
-    doc.saveas(stem.with_suffix(".dxf"))
+    if "dxf" in formats:
+        doc.saveas(stem.with_suffix(".dxf"))
     write_json(stem.with_suffix(".geometry.json"), {**data, **meta})
     return report
 
 
-def save_annotated_view(project: Project, data: dict, view: dict, stem: Path):
+def save_annotated_view(project: Project, data: dict, view: dict, stem: Path, formats=None):
     """Rich drawing adapter; commands are explicit project-selected annotations."""
     from shapely.geometry import Polygon
 
@@ -341,7 +352,8 @@ def save_annotated_view(project: Project, data: dict, view: dict, stem: Path):
     frame = view.get("drawing_bounds", [bounds[0] - 25 * scale, bounds[1] - 25 * scale,
                                         bounds[2] + 25 * scale, bounds[3] + 25 * scale])
     drawing = Drawing(frame, scale, view.get("title", view["id"]), view.get("number", ""),
-                      view.get("margin", 8))
+                      view.get("margin", 8), decoration=view.get("decoration", False),
+                      style=view.get("style"), font=view.get("font"))
     if view.get("paper_mm") and (drawing.width > view["paper_mm"][0] or drawing.height > view["paper_mm"][1]):
         raise ValueError("Requested drawing scale does not fit paper")
     rooms = [r for r in project.rooms if r.get("level") == view.get("level")]
@@ -412,17 +424,20 @@ def save_annotated_view(project: Project, data: dict, view: dict, stem: Path):
         if op in {"poly", "rect", "line", "circle"}:
             command.setdefault("layer", "A-ANNOTATION")
         getattr(drawing, op)(**command)
-    report = drawing.save(stem, metadata={"project_hash": fingerprint(project), "bounds_mm": bounds})
+    report = drawing.save(stem, metadata={"project_hash": fingerprint(project), "bounds_mm": bounds}, formats=formats)
     write_json(stem.with_suffix(".geometry.json"), {**data, **report["metadata"], "scale_bar_segments": 4,
                                                   "scale_bar_height_mm": 1})
     return report
 
 
-def generate_views(project: Project, out: Path, only=None):
+def generate_views(project: Project, out: Path, only=None, formats=None):
     import shutil
+    formats = set(["dxf", "pdf", "svg", "png"] if formats is None else formats)
+    if not formats or formats - {"dxf", "pdf", "svg", "png"}:
+        raise ValueError("View formats: dxf, pdf, svg, png")
     parts = build(project)
     out.mkdir(parents=True, exist_ok=True)
-    for font_file in ["EZarchFang.ttf", "COPYING", "SOURCE.md"]:
+    for font_file in (["EZarchFang.ttf", "COPYING", "SOURCE.md"] if "dxf" in formats else []):
         font_dir = out / "fonts"
         font_dir.mkdir(exist_ok=True)
         shutil.copy2(skill_root() / "assets/fonts" / font_file, font_dir / font_file)
@@ -432,7 +447,7 @@ def generate_views(project: Project, out: Path, only=None):
         if only and view["id"] not in only:
             continue
         data = extract_view(parts, view)
-        reports[view["id"]] = save_view(project, data, view, out / view["id"])
+        reports[view["id"]] = save_view(project, data, view, out / view["id"], formats)
     if not reports:
         raise ValueError("No requested views matched the project")
     write_json(out / "views-report.json", reports)

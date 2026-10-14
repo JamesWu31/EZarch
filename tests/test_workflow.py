@@ -33,7 +33,7 @@ def test_opening_topology_and_units(tmp_path):
     assert sum(c['area_mm2'] for c in section['cuts']) == pytest.approx(6000 * 3000 - 1000 * 2100)
     assert len(plan['cuts']) == 2  # Door void separates the wall into two islands.
     assert len(section['cuts']) == 1  # The lintel connects both jambs.
-    result = generate_model(p, tmp_path / 'model')
+    result = generate_model(p, tmp_path / 'model', formats=['step', 'scene', 'glb', '3dm', 'dae'])
     assert result['geometry_valid']
     generate_views(p, tmp_path / 'views')
     result = audit(tmp_path, tmp_path / 'audit')
