@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Recast the skill as optional tool guidance: user requirements, references and model judgement drive the work.
+- Remove mandatory task files, staged design sequences, universal audit routines and fixed deliverable packages.
+- Scope geometry schemas, units, fonts and drawing rules to the tools and tasks where they apply.
+- Document direct SVG/native API routes and helper limitations without requiring a justification for bypassing helpers.
+- Keep modular bootstrap, public asset access, exchange utilities and technical drafting references.
+- Allow optional evidence review with task-selected criteria and free/omitted categories; preserve stale-evidence detection and legacy record compatibility.
+- Align repository guidance and mark historical workflow documents as superseded.
+
 ## 0.2.0
 
 - Route create/develop/reconstruct tasks by selected modules and project-specific acceptance conditions.

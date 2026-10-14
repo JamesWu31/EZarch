@@ -1,43 +1,41 @@
-# Diagrams and boards
+# SVG、分析图与排版工具
 
-`diagram <project.yml> --out <dir>` produces editable vector functional, circulation, solid/void and area graphics from project polygons. Use model-derived axon views for 3D relationships. Circulation is an explicit design diagram; it is not a simulated occupancy result. Sunlight/energy/wind claims require an appropriate solver and recorded inputs, otherwise label the image as a conceptual diagram.
+图形内容、风格、布局、字形、图量和叙事由用户需求、参考和模型判断决定。可直接生成或修改 SVG，沿用现有脚本/模板，或选用下面的工具。没有必须先写分析问题、建模型、套槽位再出图的步骤。
 
-SVG is the editable 2D expression format. PDF is generated from the same page geometry; text remains editable in SVG and fonts are handled in PDF. Data calculations happen before styling. Use consistent colors and restrained line/label hierarchy; do not replace a vector diagram with a flattened screenshot.
+## 直接 SVG
 
-`board <board.yml> --out <dir>` is independent of model generation. The agent creates or adapts its physical page template; the user does not need to populate YAML. For a supplied SVG/PDF/image template, inspect it, identify usable content slots and build the slot specification. Use PDF backgrounds where appropriate, retaining their vector quality; mark overlay items `allow_overlap: true` when intentional. Other media slot intersections are rejected. Do not claim that raster backgrounds became editable vectors.
+SVG 可承载地图、统计图、关系图、技术线稿和自由图板。数据可以是 JSON/CSV、图像坐标、地理数据、现有矢量或临时计算结果，无需建筑 project.yml。原生 SVG 支持路径、任意角度文字、文字沿路径、分组、clipPath、渐变等；语义图层、独立样式和译名表可以帮助后续编辑，但不规定项目组织方式。
 
-Template contract:
+需要可编辑文字时，可保留 text 元素；转曲适合某些交付要求，但会失去文字编辑性。SVG 的 viewBox 坐标与纸面 width/height 可分开，图像坐标不必换成 mm。PDF/PNG 可经项目已有渲染器导出，或使用兼容的 SVG/浏览器工具；不同渲染器对字体、滤镜、裁剪的支持可能不同。
+
+## 可选 Canvas 与 diagram
+
+`ezarch.graphics.Canvas(width_mm, height_mm)` 提供 poly/line/rect/circle/text/text_box/image/pdf/save，可直接从 Python 生成 SVG/PDF/PNG，不需要项目模型。API 见 `src/ezarch/graphics.py`。
+
+这个简单封装的限制：文字仅支持 0/90/180/270 度，默认使用随库仿宋和 Helvetica 系列，不提供完整 SVG/CSS 排版能力。需要不同字体、斜向标签或其他效果时，可直接使用 SVG、其他库或扩展代码；不必调整设计去适应这些限制。
+
+`diagram <project.yml> --level <id> --out <dir>` 只是已有房间多边形的功能/概念路线/虚实/面积绘制器。它不能替代任意分析图；地图或统计图不必转换成房间。若调用这个命令，多楼层数据需要 level 参数以选择本次输入。
+
+## 可选 board 排版器
+
+`board <board.yml> --out <dir>` 接收独立模板，无需建模。适合 PDF/图片和简单文字、线框的纸面合成；可用用户现有版式或直接编写 SVG 代替。
 
 ```yaml
-title: Project presentation
-preview_dpi: 100
 sheets:
-  - title: Architecture
-    size_mm: [594, 841]
+  - size_mm: [594, 420]
     background: '#ffffff'
     items:
-      - {type: text, x: 25, y: 35, text: 'PROJECT TITLE', size: 10, bold: true}
-      - {type: image, file: outputs/render/courtyard.png, x: 25, y: 55, w: 544, h: 360, minimum_ppi: 150}
-      - {type: pdf, file: outputs/views/plan.pdf, x: 25, y: 450, w: 264, h: 286, scale_lock: true}
+      - {type: text, x: 20, y: 25, text: 'TITLE', size: 8}
+      - {type: pdf, file: plan.pdf, x: 20, y: 45, w: 260, h: 270, scale_lock: true}
+      - {type: image, file: view.png, x: 300, y: 45, w: 270, h: 180, minimum_ppi: 150}
 ```
 
-Files resolve relative to the template. PDF slots preserve vectors. `scale_lock` requires an unchanged physical scale; inspect the actual source PDF dimensions and allocate a matching slot. Do not force a drawing into a smaller slot while keeping its original scale label. Image slots maintain aspect ratio and enforce a minimum effective PPI.
+该示例仅说明参数，不是推荐的版式或图量。路径相对模板；x/y/w/h 是纸面 mm。type 支持 text、line、rect、pdf、image，不直接导入 SVG 元素。带 w/h 的 text 使用有界换行；未指定宽高的 text 为逐行定位。`allow_overlap: true` 允许有意叠放，否则工具会拒绝媒体槽位/文本框碰撞。
 
-Compose a strong reading order: one clear project statement, primary image or drawing, supporting views/diagrams, short captions, coherent margins. Avoid filling every corner. Use the generated source dimensions and actual image aspect ratios to compute slots, then inspect the whole rendered board and zoom into important labels. Check inter-slot collisions as well as page-edge overflow; fix layout parameters and regenerate, never manually patch only the exported PDF.
+`scale_lock` 对 PDF 槽位要求物理比例不变；可不启用，但图纸标注的比例仍需与实际缩放一致。图片保持宽高比，minimum_ppi 根据放置尺寸检查有效像素。固定槽位算法不会自动决定优秀的版式。
 
-Final outputs include editable SVG boards, each board's PDF/PNG, a combined presentation.pdf and placement/scale/image-resolution report. PDF/X or specialist CMYK requirements need a separately verified print workflow and must not be claimed by default.
+此命令输出各页 SVG/PDF/PNG、合订 presentation.pdf 和布局报告；按用户需要选择交付。PDF 槽位在合成 PDF 中保持矢量，但转入 SVG 时文字会转曲。需要保留原 SVG 文字/图层时，可直接组合 SVG，不必经 PDF 槽位。PDF/X、CMYK 等是另行配置的印前能力，不包含在默认输出中。
 
+## 三维图解的可选表达
 
-## 内容与设计深度
-
-基础 diagram 命令只有房间色块/概念路线/虚实/面积示例；它不是完整分析能力。先为每张图写问题、输入与结论，再用项目脚本和 Canvas/SVG/模型视图实现。场地、交通、环境、户型、构造等采用不同表达；多层数据应分层绘制，不把楼层叠成一张。
-
-爆炸图从稳定构件ID按层或系统分组，使用明确位移向量与引线，保存原位和展示位移；不改变原模型。剖切轴测剔除/剖开遮挡部分以显示真实空间；多轴测应互补。技术图解说明节点、构造层次和传力/排水意图，计算与概念分开。
-
-先组织阅读顺序与有效内容，再决定页数、网格和风格；不强制某种配色或A1数量。区位—策略—空间—技术只是可选叙事。模板参考提取比例、层次与节奏，不复制参考中的图片。PDF技术图保持物理比例；缩放时必须重新生成比例及字高。重点图、局部放大、图注、材料表和数据应互相关联，不能以大标题和空白掩盖缺项。
-
-text项可指定 w/h/size/leading，排版器按实际字体宽度换行、越界拒绝，并检查这些文本框与媒体槽位的碰撞；不会自动把文字缩小。无w/h的旧式逐行text只作页边界检查，仍需人工视觉复核。故意叠加用 allow_overlap:true 并检查阅读效果。
-
-矢量轴测不宜直接输出渲染级圆角家具的数十万三角面。主体保留精确几何，对展示中的曲面用明确、可测的简化精度；记录范围与偏差，不能改变尺寸模型。纸面无法辨认的细节不应拖慢每次出图。
-
-复杂剖切轴测优先使用真实深度缓冲/隐藏线求解。按三角形平均深度排序的画家算法会在大面相交时产生穿透和对角裂面，不能当作最终结果。可用 Blender Workbench/Cycles 正交图层，再以 SVG/PDF 添加矢量图注与数据；注明混合图像，不能称全矢量。检查相机宽高比，尤其竖版爆炸图不能裁掉两侧构件。
+模型投影、隐藏线、Blender 正交渲染与自由矢量都可用于轴测/爆炸，选择取决于所需精度和风格。用分组展示位移可保留原模型；概念分解也可直接画 SVG。复杂相交面按平均深度排序可能出现穿透，真实深度缓冲或隐藏线算法可解决这类遮挡问题。网格精细度、材质和标签可按图面需要处理，没有必须采用的镜头组或表现形式。

@@ -1,79 +1,59 @@
 # EZarch
 
-**面向 AI 的模块化建筑出图 skill。** 从需求、参考图或已有模型出发，用程序生成建筑模型、平立剖、分析图、渲染和图板。你选择需要的模块；代理负责环境准备、中间转换、执行、检查与交付。不会默认跑完整设计流程。
+**面向 AI 的建筑与空间表达工具指南。** 提供模块化的工具操作知识、Windows/macOS 基础设施和适用的技术制图参考。用户需求、参考内容和模型判断决定怎么设计、分析、绘制和交付；skill 提供帮助，不安排必经流程。
 
-第一期采用开放工具，支持 **macOS（Intel / Apple Silicon）与 Windows x64**。Rhino、SketchUp、AutoCAD 的原生程序化控制，以及 IFC，列入后续阶段。
+## 按需使用
 
-## 能做什么
+| 需要的能力 | 可选工具 |
+|---|---|
+| 二维 CAD / 技术线稿 | ezdxf，独立 Drawing |
+| 精确实体 / 模型投影 | CadQuery、OCCT |
+| 自由三维形态 / 场景 / 渲染 | Blender Python |
+| 地图 / 分析图 / 图表 / 自由版式 | 原生 SVG、项目脚本、可选 Canvas/PDF 合成 |
+| 技术制图参考 | 适用的尺寸、轴线、标高、索引、比例等规则 |
+| 格式交换 | DXF、STEP、网格 3DM、DAE、GLB、BLEND |
 
-| 选用模块 | 输入与工作方式 | 主要交付 |
-|---|---|---|
-| 需求 / 参考 | AI 识别空间约束、PDF 矢量与页面、图像标定；明确已知与推测 | 设计数据、面积表、参考证据 |
-| 精确建模 | CadQuery / OCCT 实体；墙、洞口、板、楼梯、布尔切割；项目脚本可扩展曲面 | STEP、命名构件、共享场景 |
-| 二维 / 模型出图 | 模型真实剖切 + 隐藏线投影；或代理使用 ezdxf 作独立二维图 | 毫米 1:1 DXF、定比例矢量 PDF、SVG |
-| 二三维联动 | 带单位的 DXF 闭合边界拉伸；外部 STEP 实体生成视图 | 可追溯的模型 / 平立剖 |
-| 渲染 | Blender Python / Cycles，模型导入、公开模型按需下载、PBR/HDRI、相机、日光、CPU/GPU 检测 | PNG、可复现场景 BLEND |
-| 分析图 | 从空间多边形生成面积、功能、流线、虚实；可编写项目级 SVG | 可编辑 SVG、矢量 PDF |
-| 图板 | 独立 YAML 模板组合外部 PDF 与图片；保留图纸比例、检查分辨率及重叠 | 多页 PDF、SVG、预览 PNG |
-| 建筑质量复核 | 按所选成果检查规范、完整度、使用空间、视觉与排版；证据绑定文件哈希 | `quality.yml`、问题与修改记录 |
-| 交换 / 审计 | 回读单位、尺寸、数量、实体有效性、图纸比例与输入版本 | 编辑文件、数值审计、视觉复核记录 |
+可以只用一个模块、直接调用原生 API、修改辅助脚本或完全绕过封装。已有文件和脚本可以继续使用。没有固定 task.yml、project.yml、quality.yml、四维验收表或全格式交付要求。辅助工具的参数约定只在调用该工具时生效。
 
-几何和设计判断由 AI 根据具体任务完成。现有构件库不是全功能建筑软件；异形建筑应使用同一环境中的 CadQuery / Blender API 编写项目脚本。图像不能唯一确定不可见尺寸，示意分析也不等于结构或环境性能模拟。
+示例请求：
 
-## 资源与质量
-
-三维资源仅保存公开访问路径和下载适配器；家具、植物、PBR 材质与 HDRI 按项目下载，记录许可和 SHA256，不进入 skill 仓库。随库二维工具提供轴线、尺寸链、标高、剖切、索引、指北针和参数化家具线条。它们是表达工具，不能替代项目适用规范查证。
-
-任务先区分创作、深化和复现，再选择模块。`audit` 检查技术完整性，`review` 检查四项建筑质量结论的证据完整性；两者都不能自动裁定审美或代替专业审查。发现布局、模型、图纸或视觉缺陷后，需要修改并更新关联成果。
-
-## 文件兼容
-
-- **AutoCAD：DXF**，保留图层、文字、填充、尺寸实体。
-- **Rhino：3DM + STEP**。3DM 是有名称和材质的可编辑网格；STEP 保存精确实体，两者一起交付。
-- **SketchUp：COLLADA DAE 1.4.1**，带单位和构件节点。
-- 通用：GLB、PDF、SVG、PNG、BLEND。
-
-不需要安装三个商业软件来生成上述交换文件。本期不提供原生 DWG/SKP 写入，也不把开放库回读等同于商业软件内的验收。目标软件版本可能影响导入后的分组、字体和材质表现。
-
-## 安装为 skill
-
-可安装内容全部位于 **`skills/ezarch`**；复制或通过 skill 安装器安装这一整个目录，不要只复制 `SKILL.md`。安装后的代理读取 [入口](skills/ezarch/SKILL.md)，按模块执行。示例请求：
-
-> 用 $ezarch 根据这份需求设计一个庭院住宅，先只做平面和精确模型。
+> 用 $ezarch 帮我根据这些资料做可编辑的 SVG 空间分析图，风格参考附件。
 >
-> 用 $ezarch 给这个模型做两张渲染；沿用现有设计。
+> 用 $ezarch 查询怎么给这个 CAD 平面添加符合项目要求的尺寸和标高。
 >
-> 用 $ezarch 将这些 PDF 和效果图放入两张 A1 图板，平面保持 1:100。
+> 用 $ezarch 为这个模型设置相机和渲染，保留现有设计。
 
-首次运行需要网络以下载 Python / 依赖；已安装的兼容 Blender 会被复用。否则渲染模块下载校验过的官方 Blender 4.5 LTS 到 skill 私有目录。安装器不捆绑商业软件，不修改系统 Python，不自动关闭系统安全检查。
+## 安装与基础设施
 
-开发者也可手动运行：
+可安装内容全部位于 **skills/ezarch**；复制或通过 skill 安装器安装整个目录。入口为 [SKILL.md](skills/ezarch/SKILL.md)。已有可用环境或纯 SVG 脚本可以直接使用；需要随库依赖时，AI 可按需运行：
 
 ```sh
-# macOS，仓库根目录
-sh skills/ezarch/scripts/bootstrap.sh --profile all
-skills/ezarch/.venv/bin/python skills/ezarch/scripts/run.py doctor
+# macOS，仓库根目录；model / draft / render / all 也是可选 profile
+sh skills/ezarch/scripts/bootstrap.sh --profile core
 ```
 
 ```powershell
-# Windows，仓库根目录
-powershell -File skills/ezarch/scripts/bootstrap.ps1 -Profile all
-skills/ezarch/.venv/Scripts/python.exe skills/ezarch/scripts/run.py doctor
+# Windows
+powershell -File skills/ezarch/scripts/bootstrap.ps1 -Profile core
 ```
 
-可选安装配置：`core`（参考、分析、排版）、`model` / `draft`（增加精确几何）、`render`（增加 Blender）、`all`、`dev`。配置增量安装，后选基础模块不会移除已经准备的建模能力。具体命令由代理完成，普通使用者无需自行处理每一步。
+core 含独立二维、参考提取、分析和排版助手；model/draft 增加精确几何；render 检测或安装 Blender；all 安装建模与渲染能力。安装配置增量生效，不修改系统 Python。具体操作和其他运行入口见 [环境说明](skills/ezarch/references/environment.md)。这些安装项不意味着任务需要使用所有工具。
 
-## 数据与精度
+分发包含脚本、Python 源码、依赖锁、轻量二维规则和开放仿宋字体；运行依赖按目标机器准备。三维模型、PBR 与 HDRI 从公开可读可下载来源按项目获取，不捆绑素材库。字体、图块和样式可按用户要求选择，仿宋不是所有图面的指定字体。
 
-设计数据统一为毫米；DXF 模型空间 1:1；GLB 和 Blender 边界转换为米。PDF 按物理毫米出图，图板中的定比例图不自动缩放。每次运行记录输入和输出；源数据变更后审计可识别过期图纸与渲染。
+## 兼容与技术边界
 
-默认网格化容差为 1 mm，曲线出图采样目标为 0.5 mm；这与 STEP 实体精度、源图的测量可信度是不同概念。毫米级坐标不代表施工级完整度。方案设计之外的节点、构造、规范与结构验算，需要相应设计输入和独立校核。
+AutoCAD 可采用可编辑 DXF；Rhino 可根据需求选网格 3DM 或精确 STEP；SketchUp 可采用 COLLADA DAE。无需安装这三个商业软件即可生成这些文件。原生 DWG/SKP 写入、商业应用控制和 IFC 仍暂缓。
 
-附带可自由分发的 **Fandol 仿宋衍生字体 EZarch Fang**；PDF/SVG 嵌入字体。它不是微软专有仿宋。CAD 文件需解析对应 TTF；安装器和交付包会提供同一字体。
+模型辅助接口使用 mm，GLB/Blender 边界转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
 
-## 验证与开发
+`audit` 和 `review` 是可选的技术/证据检查工具。检查范围按任务选择，不能自动裁定设计、规范合规或审美，不是普通作图和修改的交付门槛。
 
-[实施记录](docs/IMPLEMENTATION.md) 区分实测结果和待验证平台。[当前方案](docs/architecture-skill-design.md) 说明第一期范围；[后续原生适配](docs/native-roadmap.md) 保留第二期设计。
+## 仓库维护
+
+[当前定位](docs/architecture-skill-design.md) · [实施与实测记录](docs/IMPLEMENTATION.md) · [暂缓的原生适配](docs/native-roadmap.md)
+
+以下命令用于维护工具，不是用户项目的工作步骤：
 
 ```sh
 sh skills/ezarch/scripts/bootstrap.sh --profile dev
@@ -82,8 +62,8 @@ skills/ezarch/.venv/bin/ruff check --config ruff.toml skills/ezarch/src skills/e
 skills/ezarch/.venv/bin/python tools/package_skill.py --out ../EZarch-dist
 ```
 
-CI 仅配置 Windows 和 macOS。真实建筑验证项目、参考照片、生成模型、渲染和图板均在独立目录，**不进入本仓库**。仓库中的测试只使用最小合成几何。
+发布配置仅覆盖 Windows/macOS，实测与待验证平台分别记录。开发验证、用户资料、下载素材和项目成果位于库外。早期历史方案不是当前执行要求。
 
 ## License
 
-EZarch 代码为 **AGPL-3.0-or-later**，见 [LICENSE](LICENSE)。字体及第三方依赖保留各自许可，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。本仓库不含付费素材、商业 CAD 安装包或 ArchDaily 原图。
+代码为 **AGPL-3.0-or-later**，见 [LICENSE](LICENSE)。字体及第三方依赖保留各自许可，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。仓库不含商业 CAD 安装包、付费模型或参考案例原图。

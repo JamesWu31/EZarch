@@ -1,42 +1,28 @@
-# 成果质量
+# 可选证据检查器
 
-技术审计 audit 检查交换、尺寸、比例、文件、过期状态，不能证明建筑质量。review 检查证据与结论完整且对应当前文件，不能代替看图。
+当任务需要保存正式检查记录或防止引用过期文件时，可使用 `review`。普通制作、局部修改、看图判断都不要求运行它，也不要求创建 quality.yml。检查方式、范围和投入由用户要求与模型判断决定。
 
-## 项目 quality.yml
+`review <record.yml> --out <dir>` 只检查调用者列出的事项和文件 hash；不自动判断设计、审美或规范合规。它不会补入建筑检查项，也不要求四个固定维度。
 
-生成前列适用检查项，由所选模块、建筑类型、用途、阶段决定。四维分别给判断或有理由的不适用：conformance、completeness、design、presentation。
+## 输入接口（仅调用此工具时使用）
 
 ```yaml
 schema_version: 1
-task: 本次选定模块和深度
-modules: [drawings, rendering]
+task: 本次需要留档的检查
 criteria:
-  - id: drawing-dimensions
-    dimension: conformance
-    requirement: 尺寸、轴线与标高足以说明本次平剖面
-    basis: 适用标准及项目图纸深度
-    status: pending
-    observation: ''
-    evidence: []
-    # 完成后 status: pass|fail|not_applicable
-    # evidence: [{file: outputs/drawings/plan.pdf, sha256: 实际校验值}]
+  - id: requested-labels
+    dimension: translation  # 可选自由分类；也可省略
+    requirement: 图例采用用户指定的英文名称
+    basis: 用户提供的译名表
+    status: pass
+    observation: 实际复核后的具体发现
+    evidence:
+      - file: figure.svg
+        sha256: 文件实际SHA256
 ```
 
-- 规范性：适用规则及版本、图符/比例/尺寸/字体；尚未核实的技术条款？
-- 完整性：所选成果的必要信息、视图、空间和构件是否齐全？不能用留白解释缺项。
-- 合理性：功能、尺度、到达、开门、操作、竖向与结构材料关系？仅排版通常不重审用户原建筑，但应明确范围。
-- 表现：图纸可读性、层次、材质尺度、资产细节、镜头、光线、整版是否达到用途？
+一次调用至少提供一个 criterion；ID 唯一，requirement/basis/observation 非空。`modules` 与 `dimension` 均为可选描述，不限制取值。旧版四维记录仍可读取。
 
-pass 需具体观察及存在且 hash 匹配的成果；not_applicable 需范围理由，不能将用户要求改为不适用。fail/pending/缺维度/过期证据均不通过。不要先全写 pass 再生成文件；修改后先复核再更新证据。
+`pass` 需要存在且 hash 匹配的证据文件；`not_applicable` 通过 observation 描述原因。`fail`、`pending`、丢失或过期证据使这次检查返回错误。输出 quality-report.json/md 的 `evidence_complete` 只表示所提交记录通过这些完整性检查，不是作品质量评分，也不代表用户任务已完成。
 
-## 实际视觉复核
-
-打开最终 PDF 的渲染图、单张效果图、局部放大。按打印尺度看字高线宽，再放大看楼梯/门窗/索引/尺寸连接；渲染与相近表达深度的参考比较，检查占位、空白、过曝、纹理、植栽、收口；图板看阅读路径、有效信息密度和主次。
-
-不足写成可修改观察，如“东立面缺洞口标高”“流线穿服务台”“两镜头重复”“材质尺度错误”，不以笼统总分或“统一简洁”替代。风格偏好不自动是规范问题；合理留白不自动是缺项；未设计不能包装成极简。
-
-修正后重看；实质问题保留 fail，不以执行成功宣布合格。制作方 AI 自审不称独立专家认证。
-
-## 验证 skill
-
-案例在仓库外，从任务输入读取相关指南并保存任务、决定、脚本、输出和审阅记录。验证独立模块及跨模块联动；另用不同输入/类型检查迁移。不能只跑已有案例脚本。验证缺成果、缺依据、过期证据、尺度错误和使用冲突会被报告。无关模块不机械重复渲染。
+不需要留档时，可以直接观察成果、测量所关心的内容或使用其他检查方法。无需为未采用本检查器另写解释。

@@ -1,6 +1,8 @@
-# Project data and extension points
+# Optional project.yml API
 
-`project.yml` uses a validated top-level contract. Lengths/positions are millimetres, colors are RGB components from 0 to 1. Keep IDs stable and filename-safe. The agent writes this data from the user's brief and source observations.
+This is the input contract for the optional `model`, `views`, `brief` and `diagram` helpers, not a universal project schema. Use it only when invoking those helpers. Existing files, direct ezdxf/bpy/CadQuery calls, SVG, CSV, image coordinates and other project structures do not need to adopt it. No task.yml or quality.yml is required.
+
+Within this API, lengths/positions are millimetres and colors are RGB components from 0 to 1. IDs are filename-safe; stable IDs help when using its cross-file comparisons. The example illustrates fields, not a required building type, design method or deliverable set.
 
 ```yaml
 schema_version: 1
@@ -47,11 +49,11 @@ cameras:
 | step | file (relative STEP path) | origin, rotation |
 | dxf_extrusion | file, layer, height | origin, rotation |
 
-All require `id`, `material`; `category` controls drawing inclusion and render treatment. Useful categories include wall, slab, roof, frame, glass, door, furniture, finish, water, site. Openings support passage, window, glass_door or door, with offset/width/sill/height. Window panels, frame width/depth and materials are configurable. Door solids use a closed leaf; plans replace that leaf with a measured opening arc and open leaf. `swing_side: 1` opens to the left of the wall direction; `-1` reverses it. Check the intended swing and avoid furniture collisions.
+All helper elements require `id`, `material`; `category` controls drawing inclusion and render treatment. Useful categories include wall, slab, roof, frame, glass, door, furniture, finish, water, site. Openings support passage, window, glass_door or door, with offset/width/sill/height. Window panels, frame width/depth and materials are configurable. Door solids use a closed leaf; plans replace that leaf with an opening arc and open leaf. `swing_side: 1` opens to the left of the wall direction; `-1` reverses it.
 
-Any element may specify `cuts`, a list of box or cylinder cutters with the corresponding geometric fields. Use these for real slab openings, sunken pools and planting pits; do not hide an uncut floor with a colored patch and call it a geometric opening. Cutters use the coordinates of the element shape after its primary placement, before optional final rotation.
+Any element may specify `cuts`, a list of box or cylinder cutters for actual geometric openings. Cutters use the coordinates of the element shape after its primary placement, before optional final rotation. A surface color or diagrammatic patch does not alter the solid geometry.
 
-Room polygons must be valid and non-overlapping. `type: courtyard` excludes that area from interior net area. Optional fields: plan_name (short plan label), label_at, label:false, fill, diagram_color, grid_mm.
+This schema requires valid positive-area room polygons; `brief` additionally rejects same-level overlap for its net-area calculation. Overlapping analytical regions can use their own data/calculation instead. `type: courtyard` excludes that area from interior net area. Optional fields: plan_name (short plan label), label_at, label:false, fill, diagram_color, grid_mm.
 
 Dimensions: `id`, `p1`, `p2`, `base`, `view` (kind or exact view ID). Built-in dimension annotations are horizontal/vertical; oblique/radial dimensions require an explicit ezdxf/vector adapter. Sections/elevations may set `levels: [0, 3400, 4620]` in mm. Annotations: `view`, `points` and/or `text`, `at`, `size`. Exact geometry also supports project-local scripts for custom forms, rather than growing a one-case-specific schema.
 
@@ -67,12 +69,12 @@ Landscape: `kind: tree`, position [x,y,z], height, crown_radius and stable seed.
 
 ## External models and custom geometry
 
-For a CAD model supplied as STEP, use a `kind: step` element with `file`, `material` and optional `origin`; the STEP file is resolved relative to the project YAML and hashed as a dependency. For 2D-to-3D use `kind: dxf_extrusion`, `file`, `layer`, `height`: it converts documented DXF units to mm and extrudes closed, straight XY LWPOLYLINE boundaries. Unitless, curved, overlapping, nested or nonplanar boundaries fail explicitly so the AI can resolve their semantics in a project script. Original files are never modified. For external meshes use Blender's supported importers or trimesh and explicitly resolve units. For existing DXF use ezdxf to inspect and preserve layers, entities and blocks; lift only geometry with known heights into 3D.
+For a CAD model supplied as STEP, use a `kind: step` element with `file`, `material` and optional `origin`; the STEP file is resolved relative to the project YAML and hashed as a dependency. For 2D-to-3D use `kind: dxf_extrusion`, `file`, `layer`, `height`: it converts documented DXF units to mm and extrudes closed, straight XY LWPOLYLINE boundaries. Unitless, curved, overlapping, nested or nonplanar boundaries fail explicitly so the AI can resolve their semantics in a project script. Original files are never modified. For external meshes use Blender's supported importers or trimesh and explicitly resolve units. Existing DXF layers, entities and blocks can be inspected or edited with ezdxf. Extrusion heights may come from supplied dimensions or explicit design assumptions, as the task permits.
 
-An arbitrary native SKP/DWG or curved-BRep 3DM cannot be assumed readable by the phase-one helpers. The first phase guarantees generated exchange files suitable for the named target software; it does not claim universal import of every native proprietary object. Do not silently discard unsupported objects. Native import/control remains a declared second-phase capability.
+These helpers do not import arbitrary native SKP/DWG or curved-BRep 3DM. Generated exchange formats and target-app import are described in [exchange-verification.md](exchange-verification.md); they do not imply universal native object support. Native control remains deferred.
 
 
-## 0.2 semantic and expression extensions
+## Optional semantic and expression fields
 
 Optional top-level `levels: [{id: L0, elevation_mm: 0}, ...]`, `site`, `assemblies`, `requirements` retain project-specific semantics without imposing a building type. When levels exist, every room and plan view names a known `level`; plan `floor_z` clips projected geometry below that storey and `cut_z` defines the cutting height. A floor is not selected merely by moving the cut plane. Room overlap checks compare only the same level. Element metadata may include level, assembly, type_code, provenance.
 
@@ -80,6 +82,6 @@ A view with `drafting: []` uses the richer Drawing adapter. Add commands such as
 
 PBR `materials.<name>.maps` accepts base_color/roughness/normal/metallic file paths relative to the project. texture_size_m is the physical repeat size. Generated meshes receive planar UVs in world metres; normal textures use tangent space. Imported public models preserve their authored UVs/materials.
 
-`render.hdri` is a downloaded project image path; hdri_rotation is degrees. `render.lights` accepts AREA-light id, position/target in mm, size_mm [width,height], power_w and color. `render.asset_instances` accepts id, downloaded GLB/GLTF/BLEND file, source_url, position in mm, rotation_z in degrees and uniform scale. Origin is the asset footprint centre and bottom; default asset units are metres. Imported model size evidence is saved in render-report.json. Query actual size before choosing furniture footprints. Assets and referenced images are packed into final BLEND. Project fingerprint includes asset/PBR/HDRI files and local GLTF buffers/images, using portable relative dependency keys. Remote GLTF URIs are rejected; download dependencies first. BLEND external dependencies still require packing and readback verification.
+`render.hdri` is a downloaded project image path; hdri_rotation is degrees. `render.lights` accepts AREA-light id, position/target in mm, size_mm [width,height], power_w and color. `render.asset_instances` accepts id, downloaded GLB/GLTF/BLEND file, source_url, position in mm, rotation_z in degrees and uniform scale. Origin is the asset footprint centre and bottom; default asset units are metres. Imported model sizes are saved in render-report.json. This importer packs supported image dependencies into BLEND. Its project fingerprint includes asset/PBR/HDRI files and local GLTF buffers/images, using portable relative dependency keys. It rejects remote GLTF URIs and expects downloaded dependencies; direct Blender workflows may manage assets differently.
 
-Independent drawing styles or camera refinements may be project-owned supplemental sources. Bind them in graphic-report metadata or the render report as `source_bindings: [{file: relative/path/from/report/to/style.yml, sha256: digest}]`; audit checks current content. Keep the original geometric source hash, describe the applied refinement and bind the complete rendering/drawing evidence. A manual edit without a bound source must not be represented as matching an unchanged project specification.
+When source-version checks are useful, independent styles or scripts can be associated with a report using `source_bindings: [{file: relative/path/from/report/to/style.yml, sha256: digest}]`; `audit` checks current content. This metadata is optional, not a prerequisite for edits or delivery. If a report is used as evidence that output matches particular sources, its hashes need to identify the sources actually used.

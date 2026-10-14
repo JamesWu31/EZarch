@@ -1,44 +1,38 @@
-# 公开三维素材
+# 公开三维素材入口
 
-不随 skill 放模型/贴图库，不依赖个人素材目录，不固定家具清单。AI 按每次设计检索公开可读可下载素材；下载是项目依赖。
+skill 不捆绑模型/贴图库、不依赖个人素材目录。需要外部素材时，AI 可按设计和参考选择公开可读取下载的来源，下载文件属于项目依赖。定制模型也可程序化制作，不要求所有物体都使用素材库。
 
-## 官方入口（2026-10-13 核查）
+## 来源
+
+以下入口在 2026-10-13 核查；实际访问以当时元数据、许可与服务规则为准。
 
 | 来源 | 用途 | 路径 |
 |---|---|---|
 | Poly Haven | HDRI、PBR、部分模型 | https://polyhaven.com/our-api 、https://api.polyhaven.com/ 、https://docs.polyhaven.com/en/faq |
 | ambientCG | 建筑材质 | https://docs.ambientcg.com/api/ 、https://docs.ambientcg.com/license/ |
-| Blendkit（原 BlenderKit，可选） | 额外家具和软装 | https://www.blendkit.com/docs/licenses/ 、https://github.com/BlenderKit/bk_client |
+| Blendkit（原 BlenderKit） | 家具和软装等可选来源 | https://www.blendkit.com/docs/licenses/ 、https://github.com/BlenderKit/bk_client |
 
-Poly Haven 素材 CC0；在线 API 当前免费，要求唯一 User-Agent 和清楚的来源标识。素材许可与服务条款分别处理。ambientCG 素材 CC0，读取当时 API 文档。Blendkit 逐资源区分 CC0/Royalty Free；需登录/付费或限制分发的资源不纳入无账号默认路线。
+Poly Haven、ambientCG 素材采用 CC0；服务访问规则与素材许可分开。Blendkit 逐资源区分 CC0/Royalty Free，部分需要登录或付费。本库不将需账号资源作为默认运行依赖，也不限制使用其他符合任务条件的公开来源。
 
-## 项目获取方法
+## 可选 Poly Haven 下载器
 
-1. 从设计确定类别、外形、实际尺寸、风格、镜头距离。主体和定制构件仍自行设计。
-2. 读元数据、看预览再选择。Poly Haven `GET /assets?t=models|textures|hdris` 检索；`GET /files/<id>` 返回文件 URL、hash、大小及依赖。使用唯一 User-Agent，例如 `EZarch/0.2`；不猜 CDN 路径。
-3. 只获取需要的分辨率/格式和贴图到项目 dependencies/；复用已存在文件，不全库同步。检查 hash、许可、格式和失效链接。
-4. 写 assets.json：ID、原页面、下载 URL、许可、日期、hash、单位/朝向、实际尺寸和用途。不执行下载包脚本，Blender 禁止自动运行脚本。
-5. 导入后检查 UV、色彩空间、法线、尺寸、底部位置和朝向。家具不非等比压扁适配；图块 footprint 对齐。导入后的真实包围盒还要按旋转/缩放计算占地，检查植被、散布和家具是否穿墙、穿地或进入通行区；素材原点在室外不代表全部几何在室外。预览不合格则修正或更换。
-6. 打包实际依赖或 pack 到 BLEND，重开验证；按许可决定哪些源文件能公开。
-
-Material.maps 可接 base_color/roughness/normal/metallic，相对项目路径；texture_size_m 控制实际重复尺度。render.hdri 接下载 HDRI；render.asset_instances 接 GLB/GLTF/BLEND（见 project-data）。这不是 skill 附带素材库。
-
-无合适公开资源可按设计程序化制作，不能用低质占位对象冒充最终精细资产。资源下载成功和实际视觉质量分别验收。
-
-内置按需下载入口：把选择写为 `asset.yml`，例如 `provider: polyhaven`、
-`id: dining_chair_02`、`kind: model`、`resolution: 1k`，执行：
-
-```sh
-python scripts/run.py asset /project/asset.yml --out /project/dependencies/chair
+```yaml
+provider: polyhaven
+id: dining_chair_02  # 仅展示字段；不是默认选用的椅子
+kind: model
+resolution: 1k
 ```
 
-`kind` 支持 model、texture、hdri。客户端读取官方 `/files/{id}`，下载 GLTF
-及全部贴图/缓冲区依赖，校验提供方 MD5 并保存 SHA256 来源清单。
-模型尺寸必须在导入后测量，不能从文件名猜测。材质入口获取 Diffuse/Rough/nor_gl
-三个贴图；缺少字段的素材应换源或写项目适配器，不能悄悄跳过。
-Blender 以集合实例复用重复家具和树木，保存时打包贴图。场景指纹包含 GLTF
-引用的本地纹理和缓冲区，修改它们会使旧成果过期。
+`asset <asset.yml> --out <project/dependencies/...>` 读取官方 `/files/{id}`，下载 GLTF 与贴图/缓冲区依赖并校验，保存来源与 SHA256 清单。kind 支持 model、texture、hdri；客户端纹理入口获取 Diffuse/Rough/nor_gl 三类图。没有对应字段或需要其他资源类型时，可调用原 API 或编写适配器，不受这个封装限制。
 
-可用 `oriented_footprint(size_mm, position_mm, rotation_z_deg)` 取得导入后实测外廓（size_mm 已乘均匀比例）的旋转占地，再用 `check_clearances` 与室内禁入区/通道检查。此矩形包围盒是保守检查，复杂形状可换精确轮廓。
+直接查询可用 `GET /assets?t=models|textures|hdris` 与 `GET /files/<id>`。API 要求唯一 User-Agent 和来源标识；文件地址来自元数据，无需猜测 CDN 路径。分辨率和格式可按任务选择。
 
-景观检查还须覆盖入口、步道、坡道与铺装。地被不得越入这些通路；树冠可以跨越的空间应按净高与树干位置另判，不能对所有植物套用同一禁入盒。效果图应从鸟瞰和人视两种角度复核，发现问题后同步保留布局修正来源。
+## 导入操作知识
+
+Blender 可集合实例化重复素材；`scripts/blender_scene.py` 的 import_asset 将 GLTF/GLB/BLEND 按包围盒底部中心归一化，使用统一 scale 和 rotation_z，不改变原始 UV。其他原点、非均匀缩放或造型需求可直接通过 bpy 处理。具体字段见 [接口](project-data.md)。
+
+原始文件可能有不同单位、正面方向、法线、纹理色彩空间和依赖路径。原点在某个范围内不代表完整几何也在范围内；`oriented_footprint` 可计算保守占地，精确检查可使用实际几何。家具面向、植被与通路的关系可以按当前设计需要判断，无固定镜头数或检查表。
+
+`Material.maps` 支持 base_color/roughness/normal/metallic；`texture_size_m` 表示物理重复尺度；render.hdri 接项目图像。公开模型文件按数据导入，随库 Blender 不启用自动执行下载文件中的脚本。
+
+独立交付 BLEND 时可 pack 图像依赖；公开分发源素材时按其许可决定范围。是否另写资产表、采用随库 manifest 或沿用项目记录，可按交付需求选择。

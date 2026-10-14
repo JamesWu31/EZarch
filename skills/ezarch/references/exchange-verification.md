@@ -1,17 +1,30 @@
-# Exchange and verification
+# 格式交换与可选检查
 
-`model` saves exact STEP, scene.json and optional GLB/3DM/DAE. `exchange scene.json --formats glb 3dm dae` can run independently of building a model. GLB uses metres, 3DM uses millimetres, DAE declares `unitmeter=0.001` and `Z_UP`. Objects retain names; 3DM and DAE are editable mesh exchanges. Their parameter history and exact surface representation are not preserved; keep the companion STEP and project script.
+按用户需要选择格式、转换方法和验证范围。单张 SVG、既有模型渲染或局部修改不要求导出全套格式，也不要求创建建筑数据或审计报告。
 
-Generated DXF contains editable CAD entities and native dimensions. Include the bundled font files as appropriate and a verified PDF for stable appearance. Target software import should be tested when that application is available; open-library re-read is evidence of format/geometry correctness, not a claim of having opened the commercial app.
+## 现有工具的输出
 
-Use `audit <project.yml> --out <report-dir>` with outputs under that project's `outputs` directory. It checks available model/views/renders, compares source hashes, reads saved formats and checks dimensions and PDF scale controls. A subset task is audited as a subset; absent unrequested modules are not fabricated successes.
+| 格式 | 保留内容与边界 |
+|---|---|
+| DXF / ezdxf | 图层、文字、块、填充和尺寸等 CAD 实体；字体依赖可另行提供 |
+| STEP / CadQuery | 精确实体与曲面；不等于保留参数建模历史 |
+| 3DM / rhino3dm 交换器 | 有名称、基本颜色的可编辑网格；不是精确 BRep 转换器 |
+| DAE / pycollada | 网格、构件节点、基本颜色；声明 unitmeter=0.001、Z_UP |
+| GLB | 网格及场景，随库适配器用 m |
+| BLEND | Blender 场景、灯光、着色器及可打包的图像依赖 |
 
-For the visual pass open the actual files after the last edit. Record evidence in a project-local review: image inspected, concrete finding, correction and resulting image. Review a full page plus critical crops when necessary. Require a meaningful drawing/model alignment check rather than checking only that all filenames exist.
+`exchange scene.json --formats glb 3dm dae --out <dir>` 可单独执行；formats 只列所需格式。`model` 命令默认同时输出 STEP/scene.json/GLB/3DM/DAE，底层 API 可选择交换格式；这不是用户交付要求。
 
-Useful tests include a 6,000 mm geometry whose 1:100 PDF length is 60 mm; a doorway that is open in plan but has a lintel in section; a unit-preserving exchange round-trip; a changed wall parameter propagated into a new view; and a standalone board created without installing the geometry engine.
+AutoCAD 可编辑交换采用 DXF；Rhino 可按所需编辑能力选择网格 3DM 或精确 STEP；SketchUp 采用 COLLADA DAE。第一期不提供原生 DWG/SKP 写入或完整商业软件控制。格式支持与目标软件实际打开验证是不同证据；版本、字体和导入设置可能改变结果。
 
-Never mark a task successful by reducing requested detail, suppressing a failed check or changing formats without recording the loss. For repeated errors, inspect the underlying operation and preserve the working copy. First-time licensing and OS authorization constraints for future native adapters do not justify manual intermediate work in the open pipeline.
+程序材质、光学着色器、参数历史与应用特定约束并不会全部进入网格交换。转换是否适用，取决于用户需要保留的内容。
 
-Exchange retains basic object colors, units and geometry. Procedural Cycles textures, full optical shaders, modeling history and application-specific constraints do not transfer into all mesh formats. The BLEND file preserves the rendering scene; STEP preserves exact solids. In a composed board's SVG, imported PDF lettering may become outlines; retain the separate drawing/diagram SVG sources for text editing.
+## 可选 audit
 
-`audit` additionally reads the saved BLEND meshes in Blender, checks every named mesh component against the source scene, and compares DXF projection paths with their saved model-derived geometry. It does not infer success from a render log alone. Runtime versions and execution errors are retained in module run records.
+需要核对随库导出结果时，可用 `audit <project.yml|outputs-directory> --out <report-dir>`。project.yml 方式从其同级 outputs 读取结果并比较源指纹；目录方式不要求建筑项目文件。工具识别相应模型、图纸、渲染和板式报告，回读保存文件、尺寸及相关源版本。
+
+它按内置报告结构工作，不是所有文件或所有用户任务的通用验收器。例如识别到 scene.json 的模型组时，当前审计器会检查完整 STEP/GLB/3DM/DAE 组；用户只要一个格式时可直接回读那个文件，不必为满足审计器多生成文件。自定义 SVG/脚本也可以采用自己的检查。
+
+可根据问题选择量测：已知长度的打印比例、关键尺寸的跨格式回读、指定文字/图层是否保留、某次源修改是否反映到输出。是否需要这些检查及报告由本次任务决定，工具通过不等于设计或视觉质量通过。
+
+需要保存人工判断与文件版本关联时，另有 [可选证据检查器](quality-review.md)。没有任何检查命令是交付的必经步骤。

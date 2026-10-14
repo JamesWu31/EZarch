@@ -1,4 +1,4 @@
-"""Evidence validation, deliberately separate from professional/visual judgement."""
+"""Optional integrity checks for task-selected evidence; no prescribed review categories."""
 from __future__ import annotations
 
 import hashlib
@@ -8,23 +8,19 @@ import yaml
 
 from .project import write_json
 
-DIMENSIONS = {"conformance", "completeness", "design", "presentation"}
-
 
 def review(source: Path, out: Path):
     data = yaml.safe_load(source.read_text(encoding="utf-8"))
-    problems, seen, dimensions = [], set(), set()
-    if data.get("schema_version") != 1 or not data.get("task") or not data.get("modules"):
-        problems.append("Need schema_version: 1, task and selected modules")
+    problems, seen = [], set()
+    if data.get("schema_version") != 1 or not data.get("task"):
+        problems.append("Need schema_version: 1 and task")
+    if not data.get("criteria"):
+        problems.append("No evidence criteria supplied")
     for criterion in data.get("criteria", []):
         cid = criterion.get("id", "")
         if not cid or cid in seen:
             problems.append(f"Missing or duplicate criterion ID: {cid}")
         seen.add(cid)
-        dim = criterion.get("dimension")
-        dimensions.add(dim)
-        if dim not in DIMENSIONS:
-            problems.append(f"{cid}: unknown quality dimension")
         for field in ["requirement", "basis", "observation"]:
             if not str(criterion.get(field, "")).strip():
                 problems.append(f"{cid}: missing {field}")
@@ -43,14 +39,12 @@ def review(source: Path, out: Path):
                 digest = hashlib.file_digest(stream, "sha256").hexdigest()
             if item.get("sha256") != digest:
                 problems.append(f"{cid}: stale/unbound evidence {item.get('file')}")
-    for dim in sorted(DIMENSIONS - dimensions):
-        problems.append(f"Missing quality dimension: {dim}")
     result = {"evidence_complete": not problems, "problems": problems,
-              "scope": "Evidence integrity only; conclusions are authored architectural/visual review",
+              "scope": "Only the supplied evidence criteria; not an automatic design, visual or compliance judgement",
               "task": data.get("task"), "criteria": data.get("criteria", [])}
     out.mkdir(parents=True, exist_ok=True)
     write_json(out / "quality-report.json", result)
-    lines = ["# Architectural quality review", "", result["scope"], ""]
+    lines = ["# Evidence review", "", result["scope"], ""]
     for c in data.get("criteria", []):
         lines += [f"- {c.get('id')}: **{c.get('status', 'pending')}** — {c.get('observation', '')}"]
     lines += ["", *[f"- ERROR: {p}" for p in problems]]

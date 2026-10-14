@@ -78,6 +78,34 @@ def test_quality_requires_current_evidence(tmp_path):
         review(config,tmp_path/'review')
 
 
+@pytest.mark.parametrize('category', [None, 'translation'])
+def test_review_accepts_a_single_task_selected_check(tmp_path, category):
+    # Reviewing one edit must not require unrelated building categories or modules.
+    figure = tmp_path / 'existing.svg'
+    figure.write_text('<svg xmlns="http://www.w3.org/2000/svg"><text>River</text></svg>')
+    criterion = dict(id='river-label', requirement='Use the supplied English label',
+        basis='User label list', observation='The SVG text is River', status='pass',
+        evidence=[dict(file=figure.name, sha256=hashlib.sha256(figure.read_bytes()).hexdigest())])
+    if category is not None:
+        criterion['dimension'] = category
+    data = dict(schema_version=1, task='One label edit', criteria=[criterion])
+    config = tmp_path / 'record.yml'
+    config.write_text(yaml.safe_dump(data))
+    result = review(config, tmp_path / 'review')
+    assert result['evidence_complete'] and result['criteria'] == [criterion]
+    criterion['status'] = 'pending'
+    config.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match='pending'):
+        review(config, tmp_path / 'review')
+
+
+def test_review_does_not_accept_an_empty_record(tmp_path):
+    config = tmp_path / 'record.yml'
+    config.write_text(yaml.safe_dump(dict(schema_version=1, task='Nothing inspected', criteria=[])))
+    with pytest.raises(ValueError, match='No evidence criteria'):
+        review(config, tmp_path / 'review')
+
+
 def test_environment_and_usable_clearances():
     sun=solar_position(0,0,datetime(2026,3,20,12,tzinfo=timezone.utc))
     assert sun['altitude_deg']>85

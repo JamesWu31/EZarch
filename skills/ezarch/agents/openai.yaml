@@ -1,4 +1,4 @@
 interface:
   display_name: "EZarch"
-  short_description: "Programmatic architecture, drawings, renders and boards"
-  default_prompt: "Use $ezarch to design or develop the architectural outputs I request, selecting only the relevant modules and reviewing their completeness, usable design, drawing conventions and visual quality."
+  short_description: "Optional tools for architectural drawing and modeling"
+  default_prompt: "Use $ezarch as a tool reference for my request; choose or adapt only the guidance and helpers that serve my requirements and references."
