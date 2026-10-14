@@ -28,6 +28,8 @@ powershell -File "<skill>/scripts/bootstrap.ps1" -Profile core
 
 配置增量安装。首次准备依赖需要网络；已有兼容 Blender 会被复用，否则下载官方 4.5 LTS 并校验。受支持的平台为 Windows x64、macOS x64/arm64；实际测试状态见仓库实施记录。安装器会准备随库仿宋字体，但选用其他工具或字体不依赖该字体。
 
+随库建模环境使用 CadQuery 2.8 / OCP 7.9.3 / VTK 9.6.2；包含的 rhino3dm 安装包要求 macOS 14+。依赖锁为 Intel Mac 保留可用的 Numba/llvmlite 安装包，uv 对指定原生依赖使用 wheel，避免在用户电脑临时编译。已有其他可用环境仍可按任务使用。
+
 `scripts/run.py` 只是启动 skill 私有 `.venv` 的便捷入口。其他兼容环境也可以安装 Python 包后运行 `python -m ezarch.cli`，或直接导入需要的 API。`doctor` 返回环境状态，适合缺命令、版本或后端不确定时使用。
 
 ## 操作入口

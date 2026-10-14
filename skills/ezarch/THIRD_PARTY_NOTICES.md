@@ -7,6 +7,7 @@ EZarch's own code is AGPL-3.0-or-later. Dependencies are obtained by the install
 | PyMuPDF / MuPDF | AGPL-3.0 open-source option (commercial option also offered); PDF/vector operations | https://pymupdf.readthedocs.io/ |
 | CadQuery | Apache-2.0; exact modeling API | https://github.com/CadQuery/cadquery |
 | OCCT / cadquery-ocp | OCCT LGPL-2.1 with additional exception; Python bindings distributed separately | https://dev.opencascade.org/resources/licensing |
+| VTK | BSD-3-Clause; OCP runtime dependency | https://vtk.org/about/ |
 | Blender | GPL-3.0-or-later application; separately downloaded from official distribution | https://www.blender.org/about/license/ |
 | ezdxf | MIT; DXF | https://github.com/mozman/ezdxf |
 | rhino3dm | MIT; openNURBS interchange | https://github.com/mcneel/rhino3dm |

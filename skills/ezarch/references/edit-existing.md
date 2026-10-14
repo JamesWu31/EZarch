@@ -30,7 +30,7 @@ python "<skill>/scripts/examples/solid_section.py" --out study --width 8000 --de
 
 这是几何试件，不是推荐建筑形式。模型和剖面共用一次构建得到的形体，尺寸修改后重算。工程坐标可用 `Workplane(Plane(origin=..., xDir=..., normal=...))` 定义截面；STEP 导入用 `cq.importers.importStep(...)`。真实剖切提供相交几何；建筑门窗符号、标注和上方投影另外组织。
 
-官方资料：[CadQuery API](https://cadquery.readthedocs.io/en/latest/classreference.html)、[导入导出](https://cadquery.readthedocs.io/en/latest/importexport.html)。仓库测试 CadQuery 2.6.1。
+官方资料：[CadQuery API](https://cadquery.readthedocs.io/en/latest/classreference.html)、[导入导出](https://cadquery.readthedocs.io/en/latest/importexport.html)。当前环境为 CadQuery 2.8.0。
 
 ## Blender：保留场景，只改选定对象
 

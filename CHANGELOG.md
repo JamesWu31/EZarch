@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1
+
+- Package the skill from an explicit file list; reject selected symlinks/junctions and invalid paths.
+- Restrict wheel inputs to individual source/resource files and validate them before packaging.
+- Upgrade CadQuery to 2.8.0, OCP to 7.9.3.1.1 and VTK to 9.6.2, removing the vulnerable VTK 9.3.1 dependency.
+- Retain Intel Mac binary installation with a platform-specific Numba constraint; require wheels for native dependencies.
+- Document the existing macOS 14 minimum of the model environment's rhino3dm wheel.
+
 ## 0.4.0
 
 - Preserve existing BLEND render settings by default; support Chinese camera names without renaming objects.
