@@ -17,3 +17,5 @@ outputs/
 renders/
 validation/
 sources/
+# Private project planning and implementation records stay local.
+/docs/

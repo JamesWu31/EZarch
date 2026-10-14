@@ -41,7 +41,7 @@ powershell -File skills/ezarch/scripts/bootstrap.ps1 -Profile core
 
 core 含独立二维、参考提取、分析和排版助手；model/draft 增加精确几何；render 检测或安装 Blender；all 安装建模与渲染能力。安装配置增量生效，不修改系统 Python。具体操作和其他运行入口见 [环境说明](skills/ezarch/references/environment.md)。这些安装项不意味着任务需要使用所有工具。
 
-包含 rhino3dm 的建模环境要求 macOS 14 或更高版本；Windows 目标为 x64。原生 Python 依赖使用预编译安装包，平台实测范围见实施记录。
+包含 rhino3dm 的建模环境要求 macOS 14 或更高版本；Windows 目标为 x64。原生 Python 依赖使用预编译安装包，Windows 和 macOS 的自动测试结果见本仓库 Actions。
 
 分发包含脚本、Python 源码、依赖锁、轻量二维规则和开放仿宋字体；运行依赖按目标机器准备。三维模型、PBR 与 HDRI 从公开可读可下载来源按项目获取，不捆绑素材库。字体、图块和样式可按用户要求选择，仿宋不是所有图面的指定字体。
 
@@ -51,11 +51,9 @@ AutoCAD 可采用可编辑 DXF；Rhino 可根据需求选网格 3DM 或精确 ST
 
 模型辅助接口使用 mm，GLB/Blender 边界转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
 
-`audit` 可按单文件或所选输出检查结构、单位和几何。旧 `review` 仅保留维护兼容，说明见 docs/maintenance-evidence.md，不属于常规作图入口。技术检查不裁定设计、规范合规或审美。
+`audit` 可按单文件或所选输出检查结构、单位和几何。旧 `review` 仅保留维护兼容，不属于常规作图入口。技术检查不裁定设计、规范合规或审美。
 
 ## 仓库维护
-
-[当前定位](docs/architecture-skill-design.md) · [实施与实测记录](docs/IMPLEMENTATION.md) · [暂缓的原生适配](docs/native-roadmap.md)
 
 以下命令用于维护工具，不是用户项目的工作步骤：
 
@@ -66,7 +64,7 @@ skills/ezarch/.venv/bin/ruff check --config ruff.toml skills/ezarch/src skills/e
 skills/ezarch/.venv/bin/python tools/package_skill.py --out ../EZarch-dist
 ```
 
-发布配置仅覆盖 Windows/macOS，实测与待验证平台分别记录。开发验证、用户资料、下载素材和项目成果位于库外。早期历史方案不是当前执行要求。
+发布配置仅覆盖 Windows/macOS，自动检查结果见本仓库 Actions。开发验证、用户资料、下载素材和项目成果位于库外；项目规划和实施记录保留在本地，不随仓库发布。
 
 ZIP 的公开文件由 `tools/skill-files.txt` 明确列出；wheel 的文件在 `pyproject.toml` 中逐项指定。增加发行文件时更新相应清单。打包不扫描额外项目文件，所选文件及其父目录中的软链接/Windows junction 会被拒绝；这些维护配置不参与用户作图流程。
 
