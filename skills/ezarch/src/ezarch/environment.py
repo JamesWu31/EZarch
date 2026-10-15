@@ -162,7 +162,7 @@ def install_oda():
     with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'EZarch'}), timeout=120) as response, archive.open('wb') as stream:
         shutil.copyfileobj(response, stream)
     if platform.system() == 'Darwin':
-        result = subprocess.check_output(['hdiutil', 'attach', '-nobrowse', '-readonly', '-plist', str(archive)])
+        result = subprocess.check_output(['hdiutil', 'attach', '-nobrowse', '-readonly', '-plist', str(archive)], timeout=180)
         mounts = [e['mount-point'] for e in plistlib.loads(result)['system-entities'] if 'mount-point' in e]
         if not mounts:
             raise RuntimeError('ODA disk image did not mount')
@@ -171,19 +171,22 @@ def install_oda():
             apps = list(Path(mount).glob('*.app'))
             if len(apps) != 1:
                 raise RuntimeError('Unexpected ODA installer contents')
-            subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True)
+            subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True, timeout=120)
             shutil.copytree(apps[0], directory / apps[0].name, symlinks=True)
         finally:
-            subprocess.run(['hdiutil', 'detach', mount], check=True, capture_output=True)
+            subprocess.run(['hdiutil', 'detach', mount], check=True, capture_output=True, timeout=60)
     else:
         # Installer is obtained over HTTPS directly from the vendor; verify its publisher signature.
         import base64
-        script = 'if ((Get-AuthenticodeSignature -LiteralPath $env:EZARCH_ODA_INSTALLER).Status -ne "Valid") { exit 1 }'
+        script = ('$s = Get-AuthenticodeSignature -LiteralPath $env:EZARCH_ODA_INSTALLER; '
+                  '$s | Select-Object Status, StatusMessage | ConvertTo-Json -Compress; '
+                  'if ($s.Status -ne "Valid") { exit 1 }')
         encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
         verification = subprocess.run(['powershell', '-NoProfile', '-EncodedCommand', encoded],
-            env={**os.environ, 'EZARCH_ODA_INSTALLER': str(archive)}, capture_output=True)
+            env={**os.environ, 'EZARCH_ODA_INSTALLER': str(archive)}, capture_output=True,
+            text=True, errors='replace', timeout=120)
         if verification.returncode:
-            raise RuntimeError('ODA installer signature validation failed')
+            raise RuntimeError(f'ODA installer signature validation failed: {(verification.stdout + verification.stderr)[-2000:]}')
         subprocess.run(['msiexec', '/a', str(archive), '/qn', 'TARGETDIR=' + str(directory / 'app')], check=True, timeout=180)
     executable = find_oda()
     if not executable:
