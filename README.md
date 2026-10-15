@@ -11,19 +11,11 @@
 | 自由三维形态 / 场景 / 渲染 | Blender Python |
 | 地图 / 分析图 / 图表 / 自由版式 | 原生 SVG、项目脚本、可选 Canvas/PDF 合成 |
 | 技术制图参考 | 适用的尺寸、轴线、标高、索引、比例等规则 |
-| 格式交换 | DXF、STEP、网格 3DM、DAE、GLB、BLEND |
+| 格式交换 | DWG/DXF、精确 STEP、原生 3DM、DAE、GLB、BLEND |
 
 可以只用一个模块、直接调用原生 API、修改辅助脚本或完全绕过封装。已有文件和脚本可以继续使用。没有固定 task.yml、project.yml、quality.yml、四维验收表或全格式交付要求。辅助工具的参数约定只在调用该工具时生效。
 
-示例请求：
-
-> 用 $ezarch 帮我根据这些资料做可编辑的 SVG 空间分析图，风格参考附件。
->
-> 用 $ezarch 查询怎么给这个 CAD 平面添加符合项目要求的尺寸和标高。
->
-> 用 $ezarch 为这个模型设置相机和渲染，保留现有设计。
-
-新增/局部修改的可运行例子见 [原生操作](skills/ezarch/references/edit-existing.md)。工具保留用户已有场景设置；默认二维图不附加图框，字体、图框和输出格式可选。
+正常输入是 DWG、3DM、图片、PDF、链接和自然语言需求，用户无需预转换或填写配置。AI 可按需查阅 [读取定位](skills/ezarch/references/file-understanding.md)、[设计判断](skills/ezarch/references/design-judgment.md)、[规范适用](skills/ezarch/references/standards.md) 与 [连续修改](skills/ezarch/references/edit-existing.md)。成果仍需准确、充分深化、有空间逻辑并达到用户的视觉要求；工具成功日志不是设计质量证明。
 
 ## 安装与基础设施
 
@@ -47,7 +39,7 @@ core 含独立二维、参考提取、分析和排版助手；model/draft 增加
 
 ## 兼容与技术边界
 
-AutoCAD 可采用可编辑 DXF；Rhino 可根据需求选网格 3DM 或精确 STEP；SketchUp 可采用 COLLADA DAE。无需安装这三个商业软件即可生成这些文件。原生 DWG/SKP 写入、商业应用控制和 IFC 仍暂缓。
+DWG/DXF 通过可选免费闭源 ODA 转换器双向适配；Rhino 文件可直接读取/局部修改，原生曲线、曲面、拉伸体可写入，直边等截面拉伸实体可导出为闭合 BRep。任意裁剪曲面 OCCT→3DM 仍有边界，精确 STEP 可供 Rhino 导入；不静默降成网格。SketchUp 可用 DAE。商业应用控制、SKP 写入和 IFC 暂缓。
 
 模型辅助接口使用 mm，GLB/Blender 边界转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
 

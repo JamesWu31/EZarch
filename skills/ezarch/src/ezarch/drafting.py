@@ -20,17 +20,16 @@ DEFAULT_STYLE = yaml.safe_load((skill_root() / "assets/drafting/china-convention
 
 
 class Drawing:
-    def __init__(self, bounds, scale=100, title="", number="", margin=12, *, decoration=False,
+    def __init__(self, bounds, scale=100, title="", number="", margin=12, *,
                  style=None, font=None):
         if scale <= 0 or len(bounds) != 4 or bounds[2] <= bounds[0] or bounds[3] <= bounds[1]:
             raise ValueError("Positive scale and valid drawing bounds required")
         self.bounds, self.scale, self.margin = list(bounds), float(scale), float(margin)
         self.title, self.number = title, number
-        self.decoration = decoration
         self.style = {**DEFAULT_STYLE, **(style or {})}
         self.pens = {**DEFAULT_STYLE["pens_mm"], **(style or {}).get("pens_mm", {})}
         self.width = (bounds[2] - bounds[0]) / scale + margin * 2
-        self.height = (bounds[3] - bounds[1]) / scale + margin * 2 + (19 if decoration else 0)
+        self.height = (bounds[3] - bounds[1]) / scale + margin * 2
         self.canvas = Canvas(self.width, self.height, font=font)
         self.doc = ezdxf.new("R2010")
         self.doc.units = ezdxf.units.MM
@@ -240,9 +239,7 @@ class Drawing:
         original_items = list(self.canvas.items)
         meta = {**(metadata or {}), "title": self.title, "scale": self.scale,
                 "dimensions": self.dimensions, "symbols": self.symbols,
-                "formats": sorted(formats), "decoration": self.decoration}
-        if self.decoration:
-            meta.update(self.add_decoration())
+                "formats": sorted(formats)}
         try:
             report = self.canvas.save(stem, dpi=dpi, metadata=meta, formats=formats - {"dxf"})
         finally:
@@ -255,17 +252,3 @@ class Drawing:
             self.doc.saveas(stem.with_suffix(".dxf"))
         write_json(stem.with_suffix(".draft.json"), meta)
         return report
-
-    def add_decoration(self):
-        """Optional title/footer example; projects can compose their own frame instead."""
-        y = self.height - 13
-        self.canvas.line(self.margin, y - 5, self.width - self.margin, y - 5, width=.18)
-        self.canvas.text(self.margin, y, f"{self.number}  {self.title}", size=4)
-        self.canvas.text(self.width - self.margin, y, f"1:{self.scale:g} / mm", size=2.5, align="right")
-        bar_model = min(5000, max(100, math.floor((self.width - 2 * self.margin) * self.scale / 500) * 100))
-        length = bar_model / self.scale
-        for i in range(4):
-            self.canvas.rect(self.margin + i * length / 4, y + 4, length / 4, 1,
-                             fill=INK if i % 2 == 0 else "#ffffff", width=.13)
-        self.canvas.text(self.margin + length + 2, y + 5.5, f"{bar_model / 1000:g} m", size=2.5)
-        return {"scale_bar_model_mm": bar_model, "scale_bar_paper_mm": length}

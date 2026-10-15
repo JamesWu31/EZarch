@@ -54,8 +54,9 @@ def export_scene(scene, out: Path, formats):
                 layers[category] = doc.Layers.Add(layer)
             for obj in scene["objects"]:
                 mesh = r.Mesh()
+                mesh.Vertices.UseDoublePrecisionVertices = True
                 for v in obj["vertices"]:
-                    mesh.Vertices.Add(*v)
+                    mesh.Vertices.AddPoint3d(*v)
                 for f in obj["faces"]:
                     mesh.Faces.AddFace(*f)
                 mesh.Normals.ComputeNormals()
@@ -75,7 +76,7 @@ def export_scene(scene, out: Path, formats):
             if loaded is None or len(loaded.Objects) != len(scene["objects"]):
                 raise RuntimeError("3DM re-read failed")
             report = {"format": fmt, "units": "mm", "objects": len(loaded.Objects),
-                      "geometry": "editable named mesh objects; exact solids are in companion STEP"}
+                      "geometry": "editable named mesh objects; no exact solids or parametric history in this export"}
         elif fmt == "dae":
             import collada
             from collada import geometry, material, source

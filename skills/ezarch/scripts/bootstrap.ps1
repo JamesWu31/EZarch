@@ -1,4 +1,4 @@
-param([string]$Profile = "core", [switch]$InstallBlender)
+param([string]$Profile = "core", [switch]$InstallBlender, [switch]$InstallODA)
 $ErrorActionPreference = "Stop"
 $EZarchSkillRoot = Split-Path $PSScriptRoot -Parent
 $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
@@ -24,5 +24,6 @@ if ($uvCommand) {
 $arguments = @("run", "--no-project", "--python", "3.12", "python",
                (Join-Path $PSScriptRoot "bootstrap.py"), "--profile", $Profile)
 if ($InstallBlender) { $arguments += "--install-blender" }
+if ($InstallODA) { $arguments += "--install-oda" }
 & $EZarchUv @arguments
 exit $LASTEXITCODE

@@ -11,6 +11,7 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--profile", choices=["core", "model", "draft", "render", "all", "dev"], default="core")
 parser.add_argument("--install-blender", action="store_true")
+parser.add_argument("--install-oda", action="store_true")
 args = parser.parse_args()
 if sys.platform not in ("win32", "darwin"):
     raise SystemExit("EZarch releases support Windows and macOS only.")
@@ -34,3 +35,6 @@ subprocess.run([str(python), "-c", "from ezarch.environment import install_font;
 if args.install_blender or args.profile in ("render", "all"):
     subprocess.run([str(python), "-c", "from ezarch.environment import install_blender; print(install_blender())"], check=True)
 subprocess.run([str(python), "-c", "import json; from ezarch.environment import doctor; print(json.dumps(doctor(),indent=2))"], check=True)
+
+if args.install_oda:
+    subprocess.run([str(python), "-c", "from ezarch.environment import install_oda; print(install_oda())"], check=True)

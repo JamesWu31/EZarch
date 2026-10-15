@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+- Accept raw-file workflows: version-bound inspection, bounded object queries, CAD/3DM/SVG selection edits and inventory comparison, independent of Project YAML.
+- Add optional official ODA setup and isolated DWG/DXF round trips; keep full documents and report missing dependencies.
+- Add native 3DM geometry writing and exact prismatic BRep export with holes; unsupported geometry fails instead of silently becoming a mesh.
+- Inspect Blender evaluated geometry, instances and dependencies without embedded script execution.
+- Use resvg for static SVG previews, with clip/transform/CSS/physical-size regression coverage.
+- Add conditional architectural design reasoning, standards applicability and multi-source understanding references; preserve model/user discretion.
+- Remove demonstration scripts/configurations and preset drawing footers. Update packaging and regression tests.
+
+
 ## 0.4.1
 
 - Package the skill from an explicit file list; reject selected symlinks/junctions and invalid paths.

@@ -1,7 +1,7 @@
 """True solid sections and OCCT hidden-line projections, with architectural annotation."""
 from __future__ import annotations
 
-from math import atan2, cos, degrees, floor, hypot, log10, pi, sin
+from math import atan2, cos, degrees, hypot, pi, sin
 from pathlib import Path
 
 import numpy as np
@@ -153,11 +153,10 @@ def save_view(project: Project, data: dict, view: dict, stem: Path, formats=None
     minx, miny, maxx, maxy = min(xs), min(ys), max(xs), max(ys)
     scale = float(view.get("scale", 100))
     margin = float(view.get("margin", 22))
-    title_area = 22 if view.get("decoration", False) else 0
-    width, height = (maxx - minx) / scale + 2 * margin, (maxy - miny) / scale + 2 * margin + title_area
+    width, height = (maxx - minx) / scale + 2 * margin, (maxy - miny) / scale + 2 * margin
     if view.get("paper_mm"):
         width, height = view["paper_mm"]
-        if (maxx - minx) / scale + 2 * margin > width or (maxy - miny) / scale + 2 * margin + title_area > height:
+        if (maxx - minx) / scale + 2 * margin > width or (maxy - miny) / scale + 2 * margin > height:
             raise ValueError("Requested scale does not fit the paper; never silently shrink a scaled drawing")
     canvas = Canvas(width, height, font=view.get("font"))
     ox = (width - (maxx - minx) / scale) / 2
@@ -303,31 +302,9 @@ def save_view(project: Project, data: dict, view: dict, stem: Path, formats=None
         else:
             raise ValueError("Dimension annotations currently support horizontal/vertical endpoints; use a custom vector annotation for oblique dimensions")
         dims.append({"id": d.get("id"), "measured_mm": value, "p1": a, "p2": b})
-    bar_mm = bar_model_mm = None
-    if title_area:
-        baseline = height - 12
-        canvas.line(margin, height - title_area + 1, width - margin, height - title_area + 1, stroke="#a8ad9e", width=.15)
-        canvas.text(margin, baseline, view.get("title", view["id"]), size=3.1, bold=True)
-        canvas.text(width - margin, baseline, f"1:{scale:g}  /  mm", size=2.3, align="right", color="#747b6b")
-        # Metric scale bar is a measurable independent export control.
-        available = min(50, (width - 2 * margin) * .75) * scale
-        power = 10 ** floor(log10(available))
-        bar_model_mm = max(v * power for v in (.1, .2, .5, 1, 2, 5) if v * power <= available)
-        bar_mm = bar_model_mm / scale
-        bx, by = margin, height - 5
-        for i in range(5):
-            canvas.rect(bx + i * bar_mm / 5, by, bar_mm / 5, .9,
-                        fill="#343930" if i % 2 == 0 else "#ffffff", stroke="#343930", width=.08)
-        bar_label = f"{bar_model_mm / 1000:g} m" if bar_model_mm >= 1000 else f"{bar_model_mm:g} mm"
-        canvas.text(bx + bar_mm + 2, by + .8, bar_label, size=1.8)
     meta = {"title": view.get("title", view["id"]), "project_hash": fingerprint(project),
             "scale": scale, "bounds_mm": [minx, miny, maxx, maxy],
-            "paper_origin_mm": [ox, oy], "dimensions": dims, "scale_bar_paper_mm": bar_mm,
-            "scale_bar_model_mm": bar_model_mm}
-    meta.update(formats=sorted(formats), decoration=bool(title_area))
-    if not title_area:
-        meta.pop("scale_bar_paper_mm", None)
-        meta.pop("scale_bar_model_mm", None)
+            "paper_origin_mm": [ox, oy], "dimensions": dims, "formats": sorted(formats)}
     report = canvas.save(stem, metadata=meta, formats=formats - {"dxf"})
     doc.set_modelspace_vport(height=maxy - miny + 2 * margin * scale, center=((minx + maxx) / 2, (miny + maxy) / 2))
     if doc.audit().has_errors:
@@ -352,7 +329,7 @@ def save_annotated_view(project: Project, data: dict, view: dict, stem: Path, fo
     frame = view.get("drawing_bounds", [bounds[0] - 25 * scale, bounds[1] - 25 * scale,
                                         bounds[2] + 25 * scale, bounds[3] + 25 * scale])
     drawing = Drawing(frame, scale, view.get("title", view["id"]), view.get("number", ""),
-                      view.get("margin", 8), decoration=view.get("decoration", False),
+                      view.get("margin", 8),
                       style=view.get("style"), font=view.get("font"))
     if view.get("paper_mm") and (drawing.width > view["paper_mm"][0] or drawing.height > view["paper_mm"][1]):
         raise ValueError("Requested drawing scale does not fit paper")

@@ -20,17 +20,7 @@ Canvas 支持任意角度文字；font 可指定项目字体文件，省略时�
 
 `board <board.yml> --formats pdf --out <dir>` 接收独立模板，无需建模。适合 PDF/图片和简单文字、线框的纸面合成；可用用户现有版式或直接编写 SVG 代替。
 
-```yaml
-sheets:
-  - size_mm: [594, 420]
-    background: '#ffffff'
-    items:
-      - {type: text, x: 20, y: 25, text: 'TITLE', size: 8}
-      - {type: pdf, file: plan.pdf, x: 20, y: 45, w: 260, h: 270, scale_lock: true}
-      - {type: image, file: view.png, x: 300, y: 45, w: 270, h: 180, minimum_ppi: 150}
-```
-
-该示例仅说明参数，不是推荐的版式或图量。路径相对模板；x/y/w/h 是纸面 mm。sheet.font 可指定字体文件，文字 rotation 为角度。type 支持 text、line、rect、pdf、image，不直接导入 SVG 元素。带 w/h 的 text 使用有界换行；未指定宽高的 text 为逐行定位。`allow_overlap: true` 允许有意叠放，否则工具会拒绝媒体槽位/文本框碰撞。
+输入 `sheets` 列表；每项包含纸幅 `size_mm`、可选 background/font 和 items。每个 item 用 type 选择 text/line/rect/pdf/image，x/y/w/h 是纸面 mm，file 相对模板。文字支持 size/rotation；提供 w/h 时有界换行，否则逐行定位。媒体默认保持宽高比。`allow_overlap` 决定是否接受有意叠放，不是版式审美规则。模板由本次需求决定，工具不内置图量或槽位布局。
 
 `scale_lock` 对 PDF 槽位要求物理比例不变；可不启用，但图纸标注的比例仍需与实际缩放一致。图片保持宽高比，minimum_ppi 根据放置尺寸检查有效像素。固定槽位算法不会自动决定优秀的版式。
 
@@ -40,4 +30,12 @@ formats 选择 SVG/PDF/PNG；选择 PDF 时同时生成合订 presentation.pdf�
 
 模型投影、隐藏线、Blender 正交渲染与自由矢量都可用于轴测/爆炸，选择取决于所需精度和风格。用分组展示位移可保留原模型；概念分解也可直接画 SVG。复杂相交面按平均深度排序可能出现穿透，真实深度缓冲或隐藏线算法可解决这类遮挡问题。网格精细度、材质和标签可按图面需要处理，没有必须采用的镜头组或表现形式。
 
-局部改字与 SVG 组合要点见 [原生操作](edit-existing.md#svg保留图形仅修改指定文字)。
+局部改字与 SVG 组合要点见 [原生操作](edit-existing.md#svg)。
+
+## 内容与版面质量
+
+分析的对象、比较维度和结论由本次问题决定。交通图需有实际接口和目的地，功能图需与当前空间一致，环境图需要数据与方法依据；示意性表达说明其性质，不虚构技术模拟。可以直接从原图和已有模型制作，不强迫先建立房间 schema。
+
+按叙事分配主图、辅助图和文字的面积，选择对齐关系、层级、疏密和节奏；不用固定格子代替设计。用户提供模板时先理解纸幅、留白、字体、裁切和图文关系，再决定沿用或适配的部分。实际检查导出后的可读性、技术图比例、跨图对应、图片有效分辨率和文字溢出；工具允许的重叠也要看是否有明确的视觉作用。
+
+静态 SVG 预览使用 resvg（`resvg-py`），正确处理物理单位、常见 CSS、分组变换和裁剪。复杂网页特性、外部字体或不支持的 SVG 特性可改用浏览器/其他可靠矢量工具；不要把 PyMuPDF 对 SVG 的不完整渲染当成原稿设计问题。[resvg-py API](https://resvg-py.readthedocs.io/en/latest/api.html)

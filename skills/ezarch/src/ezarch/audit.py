@@ -125,11 +125,14 @@ def audit(source: Path, out: Path, outputs: Path | None = None):
             import rhino3dm as r
             doc = r.File3dm.Read(str(rhino))
             check("3DM_units", doc.Settings.ModelUnitSystem == r.UnitSystem.Millimeters, "millimetres")
-            check("3DM_components", len(doc.Objects) == expected_count, {"objects": len(doc.Objects)})
-            component_check("3DM_component_alignment", {obj.Attributes.Name: np.array([
-                np.min([[v.X, v.Y, v.Z] for v in obj.Geometry.Vertices], 0),
-                np.max([[v.X, v.Y, v.Z] for v in obj.Geometry.Vertices], 0)]) for obj in doc.Objects})
-            points = np.array([[v.X, v.Y, v.Z] for obj in doc.Objects for v in obj.Geometry.Vertices])
+            groups = {}
+            for obj in doc.Objects:
+                b = obj.Geometry.GetBoundingBox()
+                key = obj.Attributes.GetUserString("ezarch_id") or obj.Attributes.Name
+                groups.setdefault(key, []).extend([[b.Min.X, b.Min.Y, b.Min.Z], [b.Max.X, b.Max.Y, b.Max.Z]])
+            check("3DM_components", len(groups) == expected_count, {"source_parts": len(groups)})
+            component_check("3DM_component_alignment", {key: np.array([np.min(v, 0), np.max(v, 0)]) for key, v in groups.items()})
+            points = np.array([p for group in groups.values() for p in group])
             error = float(np.max(np.abs(np.array([points.min(0), points.max(0)]) - target_bounds)))
             check("3DM_bounds", error < 1, {"max_error_mm": error})
         dae = file.parent / "model.dae"

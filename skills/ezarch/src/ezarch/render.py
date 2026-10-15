@@ -42,3 +42,23 @@ def render(source: Path, out: Path, camera=None, quality=None, width=None, sampl
         if not (out / item["file"]).is_file():
             raise RuntimeError(f"Missing rendered image: {item['file']}")
     return data
+
+
+def inspect_blend(source, out):
+    """Read evaluated geometry metadata without enabling file-embedded Python."""
+    import json
+    import subprocess
+
+    from .environment import find_blender
+    from .project import skill_root
+    executable = find_blender()
+    if not executable:
+        raise RuntimeError('Blender missing; prepare the render profile or set EZARCH_BLENDER')
+    report = out / 'blend-inspection.json'
+    command = [executable, '--background', '--disable-autoexec', '--python-exit-code', '1',
+               '--python', str(skill_root() / 'scripts/blender_inspect.py'), '--',
+               '--source', str(source), '--out', str(report)]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=180)
+    if result.returncode or not report.exists():
+        raise RuntimeError('Blender inspection failed: ' + (result.stderr or result.stdout)[-2000:])
+    return json.loads(report.read_text(encoding='utf-8'))

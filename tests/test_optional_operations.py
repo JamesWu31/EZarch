@@ -1,7 +1,5 @@
 """Regression checks for task-selected output and preservation of user choices."""
 import math
-import subprocess
-import sys
 
 import ezdxf
 import pymupdf as fitz
@@ -32,11 +30,6 @@ def test_drawing_without_frame_selected_formats_and_repeated_save(tmp_path):
         lengths = [abs(item[2].x - item[1].x) * 25.4 / 72
                    for path in pdf[0].get_drawings() for item in path['items'] if item[0] == 'l']
         assert any(abs(length - 80) < .001 for length in lengths)
-    decorated = Drawing([0, 0, 10000, 5000], decoration=True, title='Optional footer')
-    for name in ['one', 'two']:
-        decorated.save(tmp_path / name, formats=['pdf'])
-        with fitz.open(tmp_path / f'{name}.pdf') as pdf:
-            assert pdf[0].get_text().count('Optional footer') == 1
 
 
 def test_custom_font_and_oblique_text_remain_editable(tmp_path):
@@ -106,24 +99,3 @@ def test_selected_exports_ignore_older_unselected_siblings(tmp_path):
     p.elements[0]['size'][2] = 5000
     generate_model(p, tmp_path / 'model', formats=['step'])
     assert audit(tmp_path / 'model', tmp_path / 'check')['passed']
-
-
-def test_native_examples_edit_and_cut_in_world_coordinates(tmp_path):
-    examples = skill_root() / 'scripts/examples'
-    doc = ezdxf.new()
-    doc.units = ezdxf.units.MM
-    text = doc.modelspace().add_text('Before', dxfattribs={'height': 100})
-    doc.modelspace().add_line([0, 0], [6000, 0])
-    doc.saveas(tmp_path / 'source.dxf')
-    subprocess.run([sys.executable, str(examples / 'edit_dxf.py'), str(tmp_path / 'source.dxf'),
-                    str(tmp_path / 'edited.dxf'), '--handle', text.dxf.handle, '--text', 'After',
-                    '--pdf', str(tmp_path / 'edited.pdf'), '--scale', '100'], check=True)
-    assert ezdxf.readfile(tmp_path / 'edited.dxf').entitydb[text.dxf.handle].dxf.text == 'After'
-    with fitz.open(tmp_path / 'edited.pdf') as pdf:
-        lengths = [abs(item[2].x - item[1].x) * 25.4 / 72
-                   for path in pdf[0].get_drawings() for item in path['items'] if item[0] == 'l']
-        assert any(abs(length - 60) < .01 for length in lengths)
-    subprocess.run([sys.executable, str(examples / 'solid_section.py'), '--out', str(tmp_path / 'solid'),
-                    '--cut-z', '1200'], check=True)
-    section = ezdxf.readfile(tmp_path / 'solid/section.dxf')
-    assert len(section.modelspace()) > 0

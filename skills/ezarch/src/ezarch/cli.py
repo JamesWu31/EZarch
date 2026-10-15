@@ -13,7 +13,11 @@ from .project import read_project, write_json
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="ezarch")
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in {"inspect", "query", "compare", "convert", "edit"}:
+        from .file_cli import main as file_main
+        return file_main(argv)
+    parser = argparse.ArgumentParser(prog="ezarch", epilog="File operations: inspect, query, compare, convert, edit (each supports --help)")
     sub = parser.add_subparsers(dest="module", required=True)
     sub.add_parser("doctor")
     for name in ["brief", "reference", "asset", "model", "draft", "views", "diagram", "render", "board", "audit", "review", "exchange"]:

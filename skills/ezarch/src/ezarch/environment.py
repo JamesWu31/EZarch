@@ -117,15 +117,77 @@ def install_blender() -> str:
 
 
 def doctor(out: Path | None = None):
+    from .cad import find_oda
     packages = {}
-    for name in ("ezarch", "ezdxf", "pymupdf", "cadquery", "cadquery-ocp", "rhino3dm", "trimesh", "pycollada"):
+    for name in ("ezarch", "ezdxf", "pymupdf", "resvg-py", "cadquery", "cadquery-ocp", "rhino3dm", "trimesh", "pycollada"):
         try:
             packages[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             packages[name] = None
     result = {"system": platform.system(), "architecture": platform.machine(),
               "python": platform.python_version(), "blender": find_blender(), "packages": packages,
-              "native_apps": "deferred", "ifc": "deferred"}
+              "oda_file_converter": find_oda(), "native_apps": "deferred", "ifc": "deferred"}
     if out:
         write_json(out, result)
     return result
+
+
+def install_oda():
+    """Fetch the optional proprietary converter from ODA, outside distributable files.
+
+    macOS: copy the signed app into the private tool cache. Windows: administrative
+    MSI extraction (no machine-wide registration). Licensing/system prompts, if any,
+    are reported rather than bypassed. The official installer is never redistributed.
+    """
+    import re
+
+    from .cad import find_oda
+    ensure_supported_platform()
+    existing = find_oda()
+    if existing:
+        return existing
+    page = 'https://www.opendesign.com/guestfiles/oda_file_converter'
+    request = urllib.request.Request(page, headers={'User-Agent': 'EZarch'})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        html = response.read().decode('utf-8')
+    suffix = ('macOsX_arm64.*?\\.dmg' if platform.machine() == 'arm64' else 'macOsX_x64.*?\\.dmg') if platform.system() == 'Darwin' else '.*?\\.msi'
+    match = re.search(r'ODAFileConverter[^"&<>\s]*?' + suffix, html)
+    if not match:
+        raise RuntimeError(f'Official ODA download layout changed; inspect {page} for the appropriate installer')
+    filename = match.group()
+    directory = skill_root() / '.ezarch/tools/oda'
+    directory.mkdir(parents=True, exist_ok=True)
+    archive = directory / Path(filename).name
+    url = 'https://www.opendesign.com/guestfiles/get?filename=' + filename
+    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'EZarch'}), timeout=120) as response, archive.open('wb') as stream:
+        shutil.copyfileobj(response, stream)
+    if platform.system() == 'Darwin':
+        result = subprocess.check_output(['hdiutil', 'attach', '-nobrowse', '-readonly', '-plist', str(archive)])
+        mounts = [e['mount-point'] for e in plistlib.loads(result)['system-entities'] if 'mount-point' in e]
+        if not mounts:
+            raise RuntimeError('ODA disk image did not mount')
+        mount = mounts[0]
+        try:
+            apps = list(Path(mount).glob('*.app'))
+            if len(apps) != 1:
+                raise RuntimeError('Unexpected ODA installer contents')
+            subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True)
+            shutil.copytree(apps[0], directory / apps[0].name, symlinks=True)
+        finally:
+            subprocess.run(['hdiutil', 'detach', mount], check=True, capture_output=True)
+    else:
+        # Installer is obtained over HTTPS directly from the vendor; verify its publisher signature.
+        import base64
+        script = 'if ((Get-AuthenticodeSignature -LiteralPath $env:EZARCH_ODA_INSTALLER).Status -ne "Valid") { exit 1 }'
+        encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
+        verification = subprocess.run(['powershell', '-NoProfile', '-EncodedCommand', encoded],
+            env={**os.environ, 'EZARCH_ODA_INSTALLER': str(archive)}, capture_output=True)
+        if verification.returncode:
+            raise RuntimeError('ODA installer signature validation failed')
+        subprocess.run(['msiexec', '/a', str(archive), '/qn', 'TARGETDIR=' + str(directory / 'app')], check=True, timeout=180)
+    executable = find_oda()
+    if not executable:
+        raise RuntimeError(f'ODA extraction completed without a callable converter; inspect {directory}')
+    write_json(directory / 'download.json', {'official_page': page, 'installer': archive.name,
+                                            'sha256': hashlib.sha256(archive.read_bytes()).hexdigest()})
+    return executable

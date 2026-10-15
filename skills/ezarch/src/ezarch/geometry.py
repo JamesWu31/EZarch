@@ -202,8 +202,11 @@ def generate_model(project: Project, out: Path, formats=None) -> dict:
             color = project.materials[part.material].color
             assembly.add(part.shape, name=part.id, color=cq.Color(*color))
         assembly.export(str(out / "model.step"))
-    meshes = sorted(formats & {"glb", "3dm", "dae"})
+    meshes = sorted(formats & {"glb", "dae"})
     exports = export_scene(scene, out, meshes) if meshes else []
+    if "3dm" in formats:
+        from .rhino import export_parts
+        exports.append(export_parts(parts, project.materials, out / "model.3dm"))
     result = {"module": "model", "project_hash": fingerprint(project), "parts": len(parts),
               "exact_geometry": "model.step" if "step" in formats else None,
               "scene": "scene.json" if "scene" in formats else None, "exports": exports,

@@ -1,63 +1,37 @@
-# 原生操作、局部修改与二维三维衔接
+# 延续已有项目与任意程序化制作
 
-下面是独立操作例子；参数只说明本例的接口，可以直接复制改写。已有项目的脚本、单位和对象组织可继续使用。例子保存副本，输出位置由调用者选择。
+以用户提供的最新文件为工作依据。选择内部格式是 AI 的技术决策，延续原项目不等于必须直接覆盖原后缀。修改前后保留未涉及内容，确定单位、坐标和修改对象；需要重构时由需求决定，不能因为重画几个基本形状容易，就丢掉源图的细节与关系。
 
-## DXF：定位实体、修改和定比例出图
+## CAD
 
-`ezdxf.readfile(path)` 保留文档的图层、块和布局。通过 `doc.modelspace().query('TEXT[layer=="LABELS"]')` 查看实体，读取 `entity.dxf.handle` 进行精确定位；同一个块定义的修改会影响全部引用，单个 INSERT 的位置/旋转修改只作用于该引用。新项目可用 `ezdxf.new("R2010")`、`doc.layers.new(...)`、`doc.blocks.new(...)` 创建实体与组织结构。
+`ezdxf.readfile()` 读取整个 DXF，修改 `doc.entitydb[handle]` 或按图层/类型查询，`doc.saveas()` 延续文档。DWG 通过 [转换器](exchange-verification.md) 建立完整工作 DXF，不必安装 AutoCAD。`ezdxf.new()` 是新建文档 API，不能作为已有项目修改的默认入口。复制实体到新文档的 importer/xref 并不支持全部对象、HEADER/OBJECTS 内容。
 
-[edit_dxf.py](../scripts/examples/edit_dxf.py) 用原生 ezdxf 修改一个指定实体，另存并按给定比例输出 PDF：
+可选 `edit <source> <output> --ids <handles> --move dx dy dz` 或 `--text <text>` 支持 DWG/DXF 全文档局部修改；坐标为源单位，保存单独文件。`--expected-sha256` 可约束编辑所依据的版本。复杂设计直接调用 ezdxf API：实体变换、块参照、HATCH 边界、弧/样条、DIMENSION、布局与样式，不受小助手提供的两种操作限制。
 
-```sh
-python "<skill>/scripts/examples/edit_dxf.py" source.dxf edited.dxf --handle 3A --move 200 0 --pdf edited.pdf --scale 100
-# 或替换指定 TEXT/MTEXT 的内容
-python "<skill>/scripts/examples/edit_dxf.py" source.dxf edited.dxf --handle 4B --text "Reading room"
-```
+块定义修改影响其所有实例；修改插入参照只改变该次放置。MINSERT 阵列、非均匀缩放、实体 OCS 与世界 WCS 不可混淆。多段线保留 bulge/closed/elevation，填充保留外环与孔洞，尺寸保留实测定义与样式，文字核对字体及 SHX/bigfont。绘图前端可用于检查，不能只抽取 LINE 就据此理解图纸。详见 [ezdxf drawing](https://ezdxf.readthedocs.io/en/stable/addons/drawing.html)、[实体导入边界](https://ezdxf.readthedocs.io/en/stable/xref.html)。
 
-handle 示例需替换成实际文件中的值；move 使用源文件单位。绘图后端按源单位换算纸面比例，自动纸幅约留 10 mm 边距；示例补偿 ezdxf 1.4.4 PDF 后端的纸面整数点取整，避免比例漂移。固定纸幅可用 `layout.Page(width, height)`；`Settings(fit_page=False, scale=...)` 保持尺度，图形是否放得下由纸面尺寸决定。已有纸空间用相应 layout，不必重建图框。
+## Rhino 文件与精确实体
 
-DXF 尺寸可用 `msp.add_linear_dim(...).render()`；对齐、角度和半径尺寸使用对应 API。移动构件后，相关尺寸的定义点、文字和剖面是否需要更新由修改含义决定；仅移动实体不会自动建立建筑关联。该 PDF 后端可输出矢量线稿，但文字可能转曲，需编辑文字时保留 DXF 或另用 SVG text。
+rhino3dm 无需 Rhino 应用即可读写原生对象。`File3dm.Read()`、`Objects.FindId()`、`Geometry.Duplicate()/Transform()`、对象属性及 `File3dm.Write()` 可延续用户文件；可选 `edit` 支持 UUID 选定对象的位移和 `--name`。它保存整个 3DM 并保留 UUID，不将其他曲面转换为网格。更深编辑按对象选择 API。
 
-官方操作资料：[实体查询](https://ezdxf.readthedocs.io/en/stable/tasks/query.html)、[绘图与导出](https://ezdxf.readthedocs.io/en/stable/addons/drawing.html)。版本以安装环境为准；仓库测试 ezdxf 1.4.4。
+新增几何可以直接用 `NurbsCurve`、`NurbsSurface`、解析曲线、`Extrusion.CreateWithPlane()`、`AddInnerProfile()`、`Brep.CreateFrom...()`，然后 `doc.Objects.Add(geometry, attributes)`。通用 `ezarch.rhino.write_geometry(objects, target, units, tolerance)` 接收原生 geometry/attributes 对，不要求建筑 schema；需要复杂图层、材质或实例树时直接管理 File3dm。曲线闭合、孔洞方向、齐次 NURBS 权重和结点序列属于几何正确性，不能靠网格外观代替。
 
-## CadQuery：自定义实体、布尔和真实剖切
+OCCT/CadQuery 适合布尔、偏移、放样、圆角、剖切和精确测量。支持的等截面拉伸实体可转为闭合 3DM BRep；任意带裁剪曲面的 OCCT→3DM 不是已解决的通用转换。优先在适合的精确表示里操作，保留 STEP 给 Rhino 导入；若本次必须以特定曲面 3DM 交付，继续选择经验证的适配，不能用全网格冒充。详见 [交换边界](exchange-verification.md)。
 
-[solid_section.py](../scripts/examples/solid_section.py) 独立演示 ellipse、loft、cut、section、STEP/DXF 导出，不使用 EZarch project.yml：
+## Blender
 
-```sh
-python "<skill>/scripts/examples/solid_section.py" --out study --width 8000 --depth 5000 --height 3600 --cut-z 1200
-```
+用 `bpy.ops.wm.open_mainfile(filepath=..., load_ui=False, use_scripts=False)` 读现有场景，按对象名/集合和检查结果定位；后台加 `--disable-autoexec --python-exit-code 1`。保留相机、灯光、材质、渲染设置及外部依赖，局部修改后 `bpy.ops.wm.save_as_mainfile()` 另存。材质/网格可能被多对象共享；需要单独改造时先复制相应 datablock，而非意外影响所有实例。
 
-这是几何试件，不是推荐建筑形式。模型和剖面共用一次构建得到的形体，尺寸修改后重算。工程坐标可用 `Workplane(Plane(origin=..., xDir=..., normal=...))` 定义截面；STEP 导入用 `cq.importers.importStep(...)`。真实剖切提供相交几何；建筑门窗符号、标注和上方投影另外组织。
+`matrix_world` 处理父子与世界坐标；`evaluated_get(depsgraph)` 查看当前帧的修改器/约束结果，`depsgraph.object_instances` 提供实例变换。求值网格适合显示/导出，不宜反过来覆盖参数化源对象。剖切、自由形态、UV、材质节点和自定义程序都可直接写 bpy，不必转换为 scene.json。见 [Blender API](https://docs.blender.org/api/current/) 与 [渲染](rendering.md)。
 
-官方资料：[CadQuery API](https://cadquery.readthedocs.io/en/latest/classreference.html)、[导入导出](https://cadquery.readthedocs.io/en/latest/importexport.html)。当前环境为 CadQuery 2.8.0。
+## SVG
 
-## Blender：保留场景，只改选定对象
+保留原 SVG 的 viewBox、分组、CSS、defs、clip/mask、字体和图像引用，用 XML/DOM 按 ID 编辑。`edit` 支持指定叶级 text/tspan 文本和父坐标系位移；复杂字排、路径、嵌套变换及版式直接使用 XML/DOM 或专用矢量库。无 ID 时查询提供的 index:N 只对该源版本有效。
 
-```sh
-blender --background --disable-autoexec --python-exit-code 1 --python "<skill>/scripts/examples/edit_blend.py" -- --input source.blend --output edited.blend --object "入口雨棚" --move 0 0 0.2
-```
+浏览器和 PyMuPDF 对 SVG/CSS/滤镜支持不同，实际渲染检查文字、继承样式与变换。图形组合注意 ID 冲突、坐标系和图像链接；输出可编辑 SVG 不应默认把文字全部转路径或整图栅格化。
 
-命令中的 blender 可替换为 doctor 检出的完整可执行路径；Windows PowerShell 对带空格的可执行路径使用 `& "路径"`。
+## 二维与三维关联
 
-[edit_blend.py](../scripts/examples/edit_blend.py) 用对象名称定位、在世界坐标平移，不重建灯光、相机或材质。move 是 Blender 场景坐标；实际长度还取决于 `scene.unit_settings.scale_length`。有父级、约束、动画或实例时，可按任务修改相应控制对象/关键帧，不能把所有可见对象当成互相独立的网格。
+关联依据是同一源版本、坐标/单位、楼层、剖切位置和视图方向。可以从三维投影出图，或从二维已确认的边界和标高建模；不假定任意平面图唯一决定三维。模型变更后重算受影响投影及尺寸，二维新增设计需要明确回写哪些三维构件。
 
-材质操作可通过 `obj.data.materials` 与 `material.node_tree`；共享材质、共享 mesh data 会影响其他使用者，只有需要单独变化时才复制。相机通过 `scene.camera` 指定；操作现有文件时沿用其渲染配置，具体参数也可直接通过 bpy 修改。随库 [render](rendering.md) 可渲染保存的副本。
-
-官方资料：[Blender Python](https://docs.blender.org/api/4.5/info_quickstart.html)。例子在 Blender 4.5 验证。
-
-## SVG：保留图形，仅修改指定文字
-
-```sh
-python "<skill>/scripts/examples/edit_svg.py" source.svg edited.svg --id map-title --text "Urban structure"
-```
-
-[edit_svg.py](../scripts/examples/edit_svg.py) 只依赖 Python 标准库，保留路径、分组、样式和坐标，对一个带 ID 的 text/tspan 叶节点替换文字。XML 序列化可能改变格式或命名空间写法；复杂富文本可直接按项目结构修改 tspan。文字长度变化后能否放进原位置需看实际图面。
-
-新建 SVG 可直接写 XML：设置纸面 width/height 与独立 viewBox，用 group、path、text、clipPath、CSS 等表达。组合已有 SVG 时可用嵌套 svg 或组变换，重复 ID 与渐变/裁剪引用需一起改名。为了可编辑文字，无需先经过 PDF 转曲。导出采用已有浏览器/SVG 渲染器，字体就绪与打印尺寸影响结果。
-
-## 衔接中的操作要点
-
-二维参考或模型之间，明确当前操作使用的单位、原点、朝向和观察方向即可；记录可留在现有代码或项目文件，无需引入统一 schema。图像像素与真实长度通过已知尺度关联；透视照片不能直接套一个比例得到遮挡部位的精确尺寸，允许设计推断时由模型确定并表达假设。
-
-模型改动可重新生成相关剖面/投影，独立标注层可继续保留并调整。二维线条本身不一定包含墙高、材料或楼层语义；从二维建立三维时，可结合其他资料或按创作要求确定。不存在普遍可逆的任意二维三维转换，也不要求所有项目先建模。
+精确剖切与建筑图纸是两个不同层面：切线之外可能还需可见线、门窗/楼梯表达、填充、图注与标注，按本次用途深化。曲线只在显示边界进行受控离散，保留精确源几何。模型坐标1:1和纸面出图比例分别管理；跨文件选择控制点、洞口、楼层与关键长度核对，不能只比较总包围盒。

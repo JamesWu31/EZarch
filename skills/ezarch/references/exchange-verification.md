@@ -1,39 +1,34 @@
-# 格式交换与文件检查
+# 工作格式、行业交付与转换边界
 
-| 格式 / 工具 | 保留内容与边界 |
+用户的正常输入可以是 DWG/3DM/PDF/图片/链接与文字需求。工作中选择 DXF、原生3DM对象、OCCT精确几何、Blender、SVG或其他数据，由 AI 根据操作决定。输出按本次用途满足行业查看和后续编辑习惯；不要求用户处理转换，不要求每次全格式交付。
+
+| 路线 | 当前能力及边界 |
 |---|---|
-| DXF / ezdxf | CAD 图层、文字、块、填充和尺寸；字体可另行提供 |
-| STEP / CadQuery | 精确实体与曲面，不包含原参数建模历史 |
-| 3DM / 随库 rhino3dm 交换器 | 有名称、分类和基本颜色的网格；精确几何可另用 STEP |
-| DAE / pycollada | 网格、构件节点、基本颜色；随库声明毫米、Z_UP |
-| GLB | 网格及场景，随库适配器用 m、Y 向上，并写入从建筑 Z 向上的变换 |
-| BLEND | Blender 场景、灯光、着色器及可打包的图像依赖 |
+| DWG ↔ DXF | 可选 ODA File Converter 双向转换；ezdxf 编辑完整工作 DXF。保留源文件与所选版本，不自动 repair。代理对象、外参、字体与专有编辑语义不能笼统保证无损 |
+| 原生 3DM | rhino3dm 读取/写回精确曲线、曲面、BRep、拉伸体和网格，UUID/属性/图层可保留。能读不等于具有完整 Rhino 几何内核 |
+| OCCT → 3DM 精确路线 | `model --formats 3dm` 对直边等截面拉伸实体生成闭合 BRep，保留对象名称/分类及洞口边界；使用原生封闭拉伸生成精确平面BRep。其他实体拒绝，不静默离散 |
+| 直接创建精确 3DM | 原生 rhino3dm 曲线、NURBS曲面、解析BRep、带孔拉伸体；`write_geometry` 可写任意受支持原生对象。复杂裁剪曲面/布尔按实际库能力处理 |
+| STEP | CadQuery/OCCT 的精确实体/曲面交换，可导入 Rhino继续编辑；不是参数历史。通用 3DM↔STEP 曲面转换未作为已实现能力 |
+| 网格 3DM | `exchange scene.json --formats 3dm` 保持原网格语义；与 model 的精确实体出口不同，不能替代需要曲面/实体编辑的交付 |
+| DAE | 网格节点/基本颜色，供 SketchUp导入；随库毫米、Z_UP。没有原生SKP/材质完整保真承诺 |
+| GLB/GLTF | 网格、节点及适用PBR材质；随库毫米→米、Z向上→Y向上变换；不带CAD参数历史 |
+| BLEND | 场景、对象、修改器、相机、着色器及可打包图像；外部库/插件/缓存仍需查依赖 |
+| SVG/PDF/图像 | SVG保留矢量对象、文字和分组；PDF面向出图，图片面向预览/表现。不能仅靠PDF代替可编辑CAD模型 |
 
-AutoCAD 交换使用 DXF；Rhino 根据编辑需求选择网格 3DM 或精确 STEP；SketchUp 使用 DAE。第一期原生 DWG/SKP 写入、商业软件控制和 IFC 暂缓。开放库回读验证和在目标软件打开验证是不同证据；材质、图层、尺寸语义及编辑能力取决于实际格式与导入设置。
+## DWG 操作
 
-## 选择输出
+`convert <source.dwg|dxf> <target.dxf|dwg> [--version ACAD2018] [--repair]` 使用独立临时输入目录，仅处理选定源文件。输出已有时拒绝覆盖；repair 是显式修复操作，不是默认。`inspect`/`edit` 可直接接收 DWG，由工具建立工作副本。跨格式的对象对应需核对，不能假定全部 handle 永远不变。
 
-```text
-model project.yml --formats step --out model
-model project.yml --formats scene glb --out render-input
-views project.yml --only section-a --formats dxf pdf --out sheets
-board board.yml --formats pdf --out boards
-exchange scene.json --formats dae --out exchange
-```
+ODA 官方提供免费的闭源 File Converter，支持 macOS/Windows和命令行，不需AutoCAD；它不等同收费ODA开发SDK。`bootstrap --install-oda` 可按需取得外部安装包并检测，实际系统权限/许可提示可能需要处理。仓库不捆绑或重新分发安装包。`doctor`/`EZARCH_ODA` 可发现或指定程序。
 
-model 默认仅 STEP；明确列出需要的格式。scene 是供随库渲染/跨格式比较使用的 JSON，可单独选用。views/Drawing/Canvas/board 的 formats 参数选择相应输出；省略时保留多格式便利默认值。已有同名旧输出不会因本次未选择而被删除，读取本次报告或使用独立输出位置可区分。
+[官方转换器](https://www.opendesign.com/guestfiles/oda_file_converter)、[免费应用说明](https://www.opendesign.com/guestfiles)、[ezdxf odafc](https://ezdxf.readthedocs.io/en/stable/addons/odafc.html)。ezdxf核心不支持DWG，其 addon 仍调用外部程序。
 
-模型使用 `generate_model(project, out, formats=[...])`，独立绘图使用 `drawing.save(stem, formats=["dxf"])`。直接原生 API 无需产生随库报告。
+## 回读、比较与交付可用性
 
-## 文件回读
+文件可解析、外观一致、几何/精度一致、特殊对象可编辑是不同验证。按受影响内容比较关键实体、曲线/块/填充、尺寸/文字、布局、图层、外部依赖、坐标和实际输出视图；数目或包围盒相同不足以证明转换完整。数值容差依据单位和任务精度确定，不用统一宽松阈值掩盖变化。
 
-`audit <file|directory|project.yml> --out <report-dir>` 是可选技术检查。
+`inspect/query/compare` 为原始文件提供版本绑定查询；`audit <file|directory|project.yml> --out <dir>` 为文件回读或随库输出关系检查。随库只生成所选格式，不要求无关同名配套文件；项目比对可用 `--outputs`。二者不判断设计、美感、全部技术合规或目标软件行为。
 
-- 单文件支持 DXF、STEP/STP、GLB/GLTF、3DM、DAE、PDF、SVG，检查能否回读及相应结构；不要求同名配套文件、固定目录或毫米单位。
-- 随库目录可按已声明的输出核对文件是否缺失、部分几何与单位是否对应、引用文件是否更新。图纸只输出 PDF 时不会要求 DXF；模型只输出 GLB 时不会要求 STEP/3DM/DAE。
-- `audit project.yml --outputs <actual-directory> --out <report-dir>` 额外比对源版本；省略 outputs 保留旧版同级 outputs 的查找约定。
-- 目录没有随库报告时，对支持的文件做独立回读。自定义检查也可直接用各工具原生 API。
+开放库回读、转换回转、在 AutoCAD/Rhino/SketchUp 中实际打开继续编辑分别记录。未做商业软件验收时如实说明；不能从扩展名推断已通过。用户再次提供修改后的文件时，以新版本为依据接续工作。
 
-数值、可读性和文件版本检查不判断构图、美感、建筑合理性或用户任务是否完成。检查具体几何、实际打印比例或视觉效果时，可量测对应对象、查看导出图像或与用户参考比较，不需要建立统一验收表。
-
-GLB 的米制与 Y 向上依据 [glTF 坐标系](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units)。0.4 修复了旧交换器只换单位、没有换轴的问题；旧版本文件需重新导出或按其实际坐标适配，不能只检查原始顶点包围盒。
+技术依据：[rhino3dm](https://github.com/mcneel/rhino3dm)、[BRep API](https://mcneel.github.io/rhino3dm/python/api/Brep.html)、[CadQuery交换](https://cadquery.readthedocs.io/en/latest/importexport.html)、[glTF单位与坐标](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units)。原生商业应用控制、SKP写入和IFC仍暂缓；DWG/3DM文件适配不随之暂缓。

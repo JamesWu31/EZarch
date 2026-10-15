@@ -10,6 +10,7 @@ EZarch's own code is AGPL-3.0-or-later. Dependencies are obtained by the install
 | VTK | BSD-3-Clause; OCP runtime dependency | https://vtk.org/about/ |
 | Blender | GPL-3.0-or-later application; separately downloaded from official distribution | https://www.blender.org/about/license/ |
 | ezdxf | MIT; DXF | https://github.com/mozman/ezdxf |
+| resvg-py / resvg | MIT wrapper; resvg dependencies retain upstream licenses; static SVG previews | https://github.com/baseplate-admin/resvg-py |
 | rhino3dm | MIT; openNURBS interchange | https://github.com/mcneel/rhino3dm |
 | trimesh | MIT | https://github.com/mikedh/trimesh |
 | pycollada | BSD | https://github.com/pycollada/pycollada |
@@ -26,3 +27,7 @@ EZarch's own code is AGPL-3.0-or-later. Dependencies are obtained by the install
 ## Architectural references and user outputs
 
 Real architectural precedents and photographs remain in the user's separate project workspace with source attribution. They are not part of the EZarch distribution. Project-specific models, renders and diagrams are not packaged as skill examples. Nothing in this notice transfers ownership of user-authored architectural content to EZarch.
+
+## Optional external DWG converter
+
+ODA File Converter is proprietary software supplied free of charge by Open Design Alliance under its own terms. EZarch can discover or download the vendor installer on request, but does not redistribute it. It is not the commercial ODA SDK and does not require AutoCAD. Official source: https://www.opendesign.com/guestfiles/oda_file_converter

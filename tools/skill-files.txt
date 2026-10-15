@@ -30,10 +30,6 @@ scripts/bootstrap.py
 scripts/bootstrap.sh
 scripts/build_hooks.py
 scripts/build_font.py
-scripts/examples/edit_blend.py
-scripts/examples/edit_dxf.py
-scripts/examples/edit_svg.py
-scripts/examples/solid_section.py
 scripts/run.py
 src/ezarch/__init__.py
 src/ezarch/analysis.py
@@ -53,3 +49,11 @@ src/ezarch/quality.py
 src/ezarch/render.py
 src/ezarch/views.py
 uv.lock
+references/design-judgment.md
+references/standards.md
+references/file-understanding.md
+scripts/blender_inspect.py
+src/ezarch/cad.py
+src/ezarch/inspection.py
+src/ezarch/rhino.py
+src/ezarch/file_cli.py

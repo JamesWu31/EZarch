@@ -20,7 +20,7 @@ powershell -File "<skill>/scripts/bootstrap.ps1" -Profile core
 
 | 安装配置 | 实际准备的能力 |
 |---|---|
-| core | 参考读取、独立二维 Drawing、SVG/PDF、排版、分析与检查助手 |
+| core | 参考读取、独立二维 Drawing、resvg 静态 SVG 预览、PDF、排版、分析与检查助手 |
 | model / draft | core + CadQuery/OCCT、网格与交换库；draft 是模型投影命令的安装别名 |
 | render | core + 检测或安装 Blender；不自动安装 CadQuery |
 | all | 建模与渲染依赖 |
@@ -44,3 +44,11 @@ board <board.yml> --formats pdf --out <dir>
 ```
 
 各命令会在所选输出目录写执行记录，这是封装的副产物，不要求用户把它列入交付。真实项目、下载素材和生成文件使用项目目录；安装目录保存工具。
+
+## 原始文件操作与 DWG 可选依赖
+
+`inspect`、`query`、`compare`、`edit` 不依赖 project.yml，入口见 [读取定位](file-understanding.md)。3DM/STEP/网格索引需要 model 依赖；BLEND 索引需要 Blender。仅处理 DWG/DXF 时 core 加 ODA 即可，不需要 Rhino/AutoCAD/CadQuery。
+
+AI 可运行 `bootstrap.sh --profile core --install-oda`；Windows 使用 `bootstrap.ps1 -Profile core -InstallODA`。安装器先检测已有程序，再从 ODA 官方页面取得对应安装包；macOS 在私有缓存复制签名应用，Windows 验证签名后尝试 MSI 提取，不捆绑安装包到仓库。可以通过 `EZARCH_ODA` 指定现有可执行文件。免费闭源 File Converter 与收费 ODA SDK 不同；系统权限、厂商许可或安装布局变化导致无法自动完成时，返回具体问题，不绕过系统保护。
+
+转换本身不会为每个项目安装商业 CAD。文件取自不可信来源时，不执行其内嵌脚本；BLEND 读取禁用 autoexec。资料路径和诊断存放在用户项目中，不写入公共发布包。
