@@ -159,8 +159,10 @@ def install_oda():
     directory.mkdir(parents=True, exist_ok=True)
     archive = directory / Path(filename).name
     url = 'https://www.opendesign.com/guestfiles/get?filename=' + filename
+    print(f'Downloading official ODA installer: {archive.name}', flush=True)
     with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'EZarch'}), timeout=120) as response, archive.open('wb') as stream:
         shutil.copyfileobj(response, stream)
+    print(f'Downloaded {archive.stat().st_size} bytes; verifying and extracting', flush=True)
     if platform.system() == 'Darwin':
         result = subprocess.check_output(['hdiutil', 'attach', '-nobrowse', '-readonly', '-plist', str(archive)], timeout=180)
         mounts = [e['mount-point'] for e in plistlib.loads(result)['system-entities'] if 'mount-point' in e]
@@ -172,6 +174,7 @@ def install_oda():
             if len(apps) != 1:
                 raise RuntimeError('Unexpected ODA installer contents')
             subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True, timeout=120)
+            print('ODA application signature verified; copying application', flush=True)
             shutil.copytree(apps[0], directory / apps[0].name, symlinks=True)
         finally:
             subprocess.run(['hdiutil', 'detach', mount], check=True, capture_output=True, timeout=60)
