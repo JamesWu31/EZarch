@@ -36,15 +36,30 @@ def destination(source, target):
 
 def find_oda():
     from .project import skill_root
-    candidates = [os.environ.get('EZARCH_ODA'), shutil.which('ODAFileConverter')]
-    roots = [skill_root() / '.ezarch/tools', Path.home() / 'Applications', Path('/Applications')]
+    cache = skill_root() / '.ezarch/tools/oda'
+    candidates = [os.environ.get('EZARCH_ODA'), shutil.which('ODAFileConverter'),
+                  cache / 'ODAFileConverter.app/Contents/MacOS/ODAFileConverter']
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return str(Path(candidate).resolve())
+    # MSI extraction may create nested vendor directories, but only search the ODA cache.
+    if cache.is_dir():
+        for candidate in cache.glob('**/ODAFileConverter.exe'):
+            if candidate.is_file():
+                return str(candidate.resolve())
+    # Do not recursively walk /Applications: Xcode bundles can contain hundreds of thousands
+    # of files, and conversion calls this probe repeatedly. Custom locations use EZARCH_ODA.
+    for root in (Path.home() / 'Applications', Path('/Applications')):
+        for pattern in ('ODA*.app/Contents/MacOS/ODAFileConverter',
+                        'ODA*/ODA*.app/Contents/MacOS/ODAFileConverter'):
+            for candidate in root.glob(pattern):
+                if candidate.is_file():
+                    return str(candidate.resolve())
     if os.environ.get('ProgramFiles'):
-        roots.append(Path(os.environ['ProgramFiles']) / 'ODA')
-    for root in roots:
-        if root.is_dir():
-            candidates.extend(str(p) for p in root.glob('**/ODAFileConverter.exe'))
-            candidates.extend(str(p) for p in root.glob('**/ODAFileConverter.app/Contents/MacOS/ODAFileConverter'))
-    return next((str(Path(p).resolve()) for p in candidates if p and Path(p).is_file()), None)
+        for candidate in (Path(os.environ['ProgramFiles']) / 'ODA').glob('**/ODAFileConverter.exe'):
+            if candidate.is_file():
+                return str(candidate.resolve())
+    return None
 
 
 def convert(source, target, version='ACAD2018', repair=False, timeout=180):

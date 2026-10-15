@@ -6,6 +6,22 @@ import pytest
 from ezarch import cad
 
 
+def test_cached_converter_discovery_does_not_scan_other_applications(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from ezarch import project
+    executable = tmp_path / '.ezarch/tools/oda/ODAFileConverter.app/Contents/MacOS/ODAFileConverter'
+    executable.parent.mkdir(parents=True)
+    executable.touch()
+    monkeypatch.setattr(project, 'skill_root', lambda: tmp_path)
+    monkeypatch.setattr(cad.shutil, 'which', lambda _: None)
+    monkeypatch.delenv('EZARCH_ODA', raising=False)
+    def no_scan(*args, **kwargs):
+        raise AssertionError('A known cached converter must not trigger filesystem traversal')
+    monkeypatch.setattr(Path, 'glob', no_scan)
+    assert cad.find_oda() == str(executable.resolve())
+
+
 def test_vendor_dwg_roundtrip_preserves_native_entities(tmp_path):
     if not cad.find_oda():
         if os.environ.get('EZARCH_TEST_ODA') == '1':
