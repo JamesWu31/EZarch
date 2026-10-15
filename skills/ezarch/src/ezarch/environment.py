@@ -178,12 +178,20 @@ def install_oda():
     else:
         # Installer is obtained over HTTPS directly from the vendor; verify its publisher signature.
         import base64
-        script = ('$s = Get-AuthenticodeSignature -LiteralPath $env:EZARCH_ODA_INSTALLER; '
+        script = ('$ErrorActionPreference = "Stop"; $ProgressPreference = "SilentlyContinue"; '
+                  '$s = Get-AuthenticodeSignature -LiteralPath $env:EZARCH_ODA_INSTALLER; '
                   '$s | Select-Object Status, StatusMessage | ConvertTo-Json -Compress; '
                   'if ($s.Status -ne "Valid") { exit 1 }')
         encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
-        verification = subprocess.run(['powershell', '-NoProfile', '-EncodedCommand', encoded],
-            env={**os.environ, 'EZARCH_ODA_INSTALLER': str(archive)}, capture_output=True,
+        # A PowerShell 7 parent can pass incompatible module paths to Windows PowerShell 5.
+        # Let the selected executable initialize its own module search paths.
+        verification_env = {k: v for k, v in os.environ.items() if k.upper() != 'PSMODULEPATH'}
+        verification_env['EZARCH_ODA_INSTALLER'] = str(archive)
+        shell = shutil.which('pwsh') or shutil.which('powershell')
+        if not shell:
+            raise RuntimeError('PowerShell is needed to verify the ODA Windows installer')
+        verification = subprocess.run([shell, '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
+            env=verification_env, capture_output=True,
             text=True, errors='replace', timeout=120)
         if verification.returncode:
             raise RuntimeError(f'ODA installer signature validation failed: {(verification.stdout + verification.stderr)[-2000:]}')
