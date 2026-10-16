@@ -12,7 +12,7 @@ Blender 是三维主工具。原生 bpy、BMesh、曲线、修改器、Geometry 
 
 场景查询支持 `query <inspection.json> --section objects|instances|collections|cameras|materials|node_groups|libraries|dependencies`，结合 `--contains`、`--ids` 和分页；节点组结果列出可调接口的实际 identifier。详细拓扑和完整节点结构留在原文件，需要时再用 bpy 局部读取。
 
-修改保留用户当前模型、材质、灯光、相机和设置。共享的 mesh/material/node group 在需要独立修改时复制 datablock；父子约束和实例关系不能仅看 location。用户新文件优先于旧生成脚本。
+修改时保留本次任务未涉及的模型、材质、灯光、相机和设置；需要调整的部分按用户要求处理。共享的 mesh/material/node group 在需要独立修改时复制 datablock；父子约束和实例关系不能仅看 location。用户新文件优先于旧生成脚本。
 
 ## 几何操作选择
 

@@ -1,15 +1,21 @@
 ---
 name: ezarch
-description: Tool guidance and optional infrastructure for architectural drawings, Blender modeling, renders, diagrams and layouts. Use for DWG/3DM/BLEND/PDF/image/link references, architectural design reasoning, precise drawing/model editing, Blender Python, ezdxf, SVG/PDF and applicable standards.
+description: Programmatic architectural drawings, Blender models and model-based visualization, diagrams and layouts. Use for architectural design or editing from DWG/3DM/BLEND/PDF/image/link references, with tool guidance and applicable drafting standards.
 ---
 
 # EZarch
 
 帮助 AI 用程序化工具实现用户要求的建筑与空间表达。用户需求、参考内容及其使用意图决定目标；模型判断设计、分析、表达、工具组合和工作安排。工具的默认值和封装能力不决定成果的类型、风格或深度。
 
-对新创作、新设计，以及在已有成果基础上的修改，先向用户提出适合当前任务的方案，待用户确认后实施。方案的内容、形式和详细程度，由用户需求、参考资料、项目特点及模型判断决定，不预设统一结构或必填内容。忠实复刻、复现可直接开展，以尽可能达到 1:1、细节完整一致为目标。
+制作时建立、编辑实际图纸或模型，保留可继续编辑的源成果。三维透视、概念图和效果图也属于这个制作目标，通常由 Blender 模型与相机出图；二维任务可以直接使用 ezdxf、SVG 等，无需先建三维。本 skill 中生成式图像仅用于已完成设计成果的渲染替代，不代替构思、设计、作图或建模；使用边界见 [渲染](references/rendering.md#基于完成设计的生成式渲染)。
+
+对新创作、新设计，以及在已有成果基础上的修改，先向用户提出适合当前任务的详细的方案，待用户确认后实施。方案的内容、形式和详细程度，由用户需求、参考资料、项目特点及模型判断决定，不预设统一结构或必填内容。忠实复刻、复现可直接开展，以尽可能达到 1:1、细节完整一致为目标。
+
+方案应足以让用户理解将做成什么并判断主要设计选择，不能仅用主题名称和通用概念索取确认。如何把关系讲清楚由任务决定，可用文字或程序化示意辅助，见 [设计判断](references/design-judgment.md#让方案能够被理解和判断)。影响主要形象或空间的假设与制作方式在确认前讲清楚；具体细节仍可在已确认范围内深化。
 
 资料读取与分析可先行；已确认的方案无需重复确认，用户明确要求跳过方案确认时按其授权处理。
+
+依据提示词判断参考的作用和接近程度：空间方法、整体形象、材质氛围、表达风格或忠实复现可能各不相同。会导向明显不同成果且无法从上下文确定时再澄清；已明确的视觉相似要求不能自行降为抽象灵感，也不把每个参考都当作外形复制要求。指定资料读取不全时说明缺失及其影响；影响当前设计或验收依据时，取得用户对补充资料或按现有依据推进的选择，详见 [读取不足](references/file-understanding.md#读取不够时)。
 
 模块供按需查阅，可以独立使用或组合。沿用现有项目、直接调用原生 API、修改辅助代码或另写脚本均可；不要求任务表、统一数据模型、固定流程、图量或交付包，也无需为未使用封装补写理由。具体接口的字段和单位只约束该接口。
 

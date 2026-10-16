@@ -20,7 +20,7 @@ Blender 用于主要三维制作；rhino3dm 保留精确文件读写与适用局
 
 ## Blender
 
-用 `bpy.ops.wm.open_mainfile(filepath=..., load_ui=False, use_scripts=False)` 读现有场景，按对象名/集合和检查结果定位；后台加 `--disable-autoexec --python-exit-code 1`。保留相机、灯光、材质、渲染设置及外部依赖，局部修改后 `bpy.ops.wm.save_as_mainfile()` 另存。材质/网格可能被多对象共享；需要单独改造时先复制相应 datablock，而非意外影响所有实例。
+用 `bpy.ops.wm.open_mainfile(filepath=..., load_ui=False, use_scripts=False)` 读现有场景，按对象名/集合和检查结果定位；后台加 `--disable-autoexec --python-exit-code 1`。保留本次修改未涉及的相机、灯光、材质、渲染设置及外部依赖，局部修改后 `bpy.ops.wm.save_as_mainfile()` 另存。材质/网格可能被多对象共享；需要单独改造时先复制相应 datablock，而非意外影响所有实例。
 
 `matrix_world` 处理父子与世界坐标；`evaluated_get(depsgraph)` 查看当前帧的修改器/约束结果，`depsgraph.object_instances` 提供实例变换。求值网格适合显示/导出，不宜反过来覆盖参数化源对象。剖切、自由形态、UV、材质节点和自定义程序都可直接写 bpy，不必转换为 scene.json。见 [Blender API](https://docs.blender.org/api/current/) 、[原生建模](blender-modeling.md) 与 [渲染](rendering.md)。
 
