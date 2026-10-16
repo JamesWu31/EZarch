@@ -95,9 +95,13 @@ def test_wheel_inputs_are_individual_declared_release_files():
 
 
 def test_model_runtime_excludes_known_vulnerable_vtk():
-    from importlib.metadata import version
+    from importlib.metadata import PackageNotFoundError, version
 
     from packaging.version import Version
 
     # PYSEC-2025-224/225/226 affect VTK's glTF reader through 9.5.0.
-    assert Version(version("vtk")) >= Version("9.5.1")
+    try:
+        installed = version("vtk")
+    except PackageNotFoundError:
+        return  # Default Blender runtime has no VTK dependency.
+    assert Version(installed) >= Version("9.5.1")

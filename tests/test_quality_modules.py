@@ -27,6 +27,7 @@ def two_levels():
 
 
 def test_multi_level_projection_and_diagram_scope(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p=two_levels()
     upper=extract_view(build(p),p.views[0])
     assert min(pt[0] for line in upper['lines'] for pt in line)==pytest.approx(1000)

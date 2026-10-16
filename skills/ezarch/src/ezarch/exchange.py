@@ -87,9 +87,12 @@ def export_scene(scene, out: Path, formats):
             doc.assetInfo.upaxis = "Z_UP"
             nodes = []
             mats = {}
-            for key, m in scene["materials"].items():
-                effect = material.Effect(key + "-fx", [], "phong", diffuse=tuple(m["color"]) + (1,))
-                mat = material.Material(key, key, effect)
+            for index, (key, m) in enumerate(scene["materials"].items()):
+                # Blender names can contain spaces, slashes and Unicode. Keep
+                # display names while giving XML ID references portable tokens.
+                sid = f"material-{index}"
+                effect = material.Effect(sid + "-fx", [], "phong", diffuse=tuple(m["color"]) + (1,))
+                mat = material.Material(sid, key, effect)
                 doc.effects.append(effect)
                 doc.materials.append(mat)
                 mats[key] = mat
@@ -103,7 +106,7 @@ def export_scene(scene, out: Path, formats):
                 geo.primitives.append(tris)
                 doc.geometries.append(geo)
                 mn = cs.MaterialNode("surface", mats[obj["material"]], inputs=[])
-                nodes.append(cs.Node(obj["id"], children=[cs.GeometryNode(geo, [mn])]))
+                nodes.append(cs.Node(f"node-{i}", name=obj["id"], children=[cs.GeometryNode(geo, [mn])]))
             root = cs.Scene("EZarch", nodes)
             doc.scenes.append(root)
             doc.scene = root

@@ -79,6 +79,7 @@ def test_exact_rhino_objects_read_edit_preserve_ids(tmp_path):
 
 
 def test_exact_polyhedral_brep_and_no_faceting_of_curves(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     import cadquery as cq
     import rhino3dm as r
     shape = cq.Workplane().box(6000, 300, 3000).cut(cq.Workplane().box(1200, 500, 2000)) .val()

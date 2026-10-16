@@ -9,11 +9,11 @@
 | 需要的能力 | 可选工具 |
 |---|---|
 | 二维 CAD / 技术线稿 | ezdxf，独立 Drawing |
-| 精确实体 / 模型投影 | CadQuery、OCCT |
-| 自由三维形态 / 场景 / 渲染 | Blender Python |
+| 三维建模 / 场景 / 渲染 / 合成 | Blender Python、BMesh、Geometry Nodes、适用社区插件和资产 |
+| 模型剖切 / 正交可见线 | Blender 求值网格 + 可选几何与二维助手 |
 | 地图 / 分析图 / 图表 / 自由版式 | 原生 SVG、项目脚本、可选 Canvas/PDF 合成 |
 | 技术制图参考 | 适用的尺寸、轴线、标高、索引、比例等规则 |
-| 格式交换 | DWG/DXF、精确 STEP、原生 3DM、DAE、GLB、BLEND |
+| 格式交换 | DWG/DXF、原生 3DM、网格 3DM/DAE、GLB、BLEND |
 
 可以只用一个模块、直接调用原生 API、修改辅助脚本或完全绕过封装。已有文件和脚本可以继续使用。没有固定 task.yml、project.yml、quality.yml、四维验收表或全格式交付要求。辅助工具的参数约定只在调用该工具时生效。
 
@@ -33,7 +33,7 @@ sh skills/ezarch/scripts/bootstrap.sh --profile core
 powershell -File skills/ezarch/scripts/bootstrap.ps1 -Profile core
 ```
 
-core 含独立二维、参考提取、分析和排版助手；model/draft 增加精确几何；render 检测或安装 Blender；all 安装建模与渲染能力。安装配置增量生效，不修改系统 Python。具体操作和其他运行入口见 [环境说明](skills/ezarch/references/environment.md)。这些安装项不意味着任务需要使用所有工具。
+core 含独立二维、参考提取、分析和排版助手；draft 保持独立二维；model 增加 Blender 与网格/3DM 交换库；render 检测或安装 Blender；all 安装建模与渲染能力。安装配置增量生效，不修改系统 Python。具体操作和其他运行入口见 [环境说明](skills/ezarch/references/environment.md)。这些安装项不意味着任务需要使用所有工具。
 
 包含 rhino3dm 的建模环境要求 macOS 14 或更高版本；Windows 目标为 x64。原生 Python 依赖使用预编译安装包，Windows 和 macOS 的自动测试结果见本仓库 Actions。
 
@@ -41,9 +41,11 @@ core 含独立二维、参考提取、分析和排版助手；model/draft 增加
 
 ## 兼容与技术边界
 
-DWG/DXF 通过可选免费闭源 ODA 转换器双向适配；Rhino 文件可直接读取/局部修改，原生曲线、曲面、拉伸体可写入，直边等截面拉伸实体可导出为闭合 BRep。任意裁剪曲面 OCCT→3DM 仍有边界，精确 STEP 可供 Rhino 导入；不静默降成网格。SketchUp 可用 DAE。商业应用控制、SKP 写入和 IFC 暂缓。
+DWG/DXF 通过可选免费闭源 ODA 转换器双向适配。三维以 Blender 为核心，rhino3dm 保留原生对象读取/局部修改；Blender 可导出网格 3DM、GLB 和 DAE。Rhino 曲面导入通常需要文件内的显示网格，缺失网格的复杂 BRep 不能保证完整转换；网格不冒充 NURBS/BRep。CadQuery/STEP 主线暂缓，旧代码仅用于已有项目兼容，不由默认安装启用。商业应用控制、SKP 写入和 IFC 暂缓。
 
-模型辅助接口使用 mm，GLB/Blender 边界转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
+Blender 保留工程单位，几何快照和二维助手使用 mm，GLB 显式转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
+
+原生入口可直接运行用户/AI 的脚本：`blender run <script.py> --source <existing.blend> --save <result.blend> --out <dir>`；无 source 时从空场景开始。`blender extract/export/view` 为可选网格交换和出图助手，见 [建模操作](skills/ezarch/references/blender-modeling.md)、[模型出图](skills/ezarch/references/geometry-drawings.md) 与 [社区接入](skills/ezarch/references/blender-ecosystem.md)。完整场景可继续直接使用 bpy，不要求统一 schema。
 
 `audit` 可按单文件或所选输出检查结构、单位和几何。旧 `review` 仅保留维护兼容，不属于常规作图入口。技术检查不裁定设计、规范合规或审美。
 
@@ -53,7 +55,7 @@ DWG/DXF 通过可选免费闭源 ODA 转换器双向适配；Rhino 文件可直�
 
 ```sh
 sh skills/ezarch/scripts/bootstrap.sh --profile dev
-skills/ezarch/.venv/bin/python -m pytest -q tests
+EZARCH_TEST_BLENDER=1 skills/ezarch/.venv/bin/python -m pytest -q tests
 skills/ezarch/.venv/bin/ruff check --config ruff.toml skills/ezarch/src skills/ezarch/scripts tests tools
 skills/ezarch/.venv/bin/python tools/package_skill.py --out ../EZarch-dist
 ```

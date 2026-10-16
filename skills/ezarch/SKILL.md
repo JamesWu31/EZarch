@@ -1,6 +1,6 @@
 ---
 name: ezarch
-description: Tool guidance and optional infrastructure for creating or editing architectural drawings, models, diagrams, renders and layouts programmatically. Use for raw DWG/3DM/PDF/image/link references, architectural design reasoning, precise drawing/model editing, ezdxf, CadQuery/OCCT, Blender, SVG/PDF and applicable standards.
+description: Tool guidance and optional infrastructure for architectural drawings, Blender modeling, renders, diagrams and layouts. Use for DWG/3DM/BLEND/PDF/image/link references, architectural design reasoning, precise drawing/model editing, Blender Python, ezdxf, SVG/PDF and applicable standards.
 ---
 
 # EZarch
@@ -26,20 +26,22 @@ description: Tool guidance and optional infrastructure for creating or editing a
 | 准备或排查环境 | [Windows/macOS 按需安装](references/environment.md) |
 | 理解 DWG/3DM/PDF/图片/链接及定位对象 | [原始资料读取](references/file-understanding.md)、[参考与尺度](references/design-reference.md) |
 | 设计、深化、判断空间与表达质量 | [建筑设计判断](references/design-judgment.md) |
-| 新建 CAD、精确实体、平立剖 | [几何与图纸](references/geometry-drawings.md) |
+| 三维建模、场景理解、节点与局部编辑 | [Blender 建模与操作](references/blender-modeling.md) |
+| 新建 CAD、模型剖切、平立剖联动 | [几何与图纸](references/geometry-drawings.md) |
 | 修改已有 DXF/SVG/BLEND，二维三维衔接 | [原生操作与局部修改](references/edit-existing.md) |
 | 适用技术要求及制图表达 | [规范适用](references/standards.md)、[中国制图](references/chinese-drafting.md) |
 | 地图、统计、环境或使用空间计算 | [地图与分析参考](references/site-analysis.md)、[空间测量](references/spatial-measurement.md) |
 | SVG、分析图、图表或版面 | [矢量与排版](references/diagrams-boards.md) |
 | 材质、灯光、相机或素材 | [Blender 渲染](references/rendering.md)、[公开素材入口](references/public-assets.md) |
+| 插件、节点资产、社区工具接入 | [Blender 社区能力](references/blender-ecosystem.md) |
 | 格式转换、单位、文件回读 | [交换与检查](references/exchange-verification.md) |
 
 技术规范按地区、图种和阶段选用；模型依据本次要求判断设计、内容和视觉效果。运行成功、文件能打开或数值检查通过，只说明相应工具实际验证的事项。
 
-随库构件命令需要参数时，查 [project.yml 接口](references/project-data.md)。它是便捷工具的输入格式，可直接用原生几何或项目自己的数据替代。
+三维以 Blender 原生 Python 为主，可以直接创建和继续编辑完整 .blend；几何、节点、材质、灯光和表达方式由任务决定。按需复用社区插件及资产，也可自行编程，不受随库函数和默认值限制。旧 [project.yml 接口](references/project-data.md) 只用于已有兼容任务，不是新建模的入口要求。
 
 ## 基础设施范围
 
-提供 Windows/macOS 的开放工具环境、字体及轻量二维符号；DWG 双向适配可选外部免费闭源 ODA。3DM 支持原生对象读取与局部编辑、适用精确几何写入；具体支持范围见格式说明。Rhino、SketchUp、AutoCAD 应用控制与 IFC 暂缓。
+提供 Windows/macOS 的 Blender 与开放 Python 工具环境、字体及轻量二维符号；DWG 双向适配可选外部免费闭源 ODA。3DM 支持原生对象读取与局部编辑，以及适用的网格交换；网格不冒充 NURBS。CadQuery/STEP 主线、Rhino/SketchUp/AutoCAD 应用控制与 IFC 暂缓。具体边界见格式说明。
 
 三维素材按项目从公开可读取下载的来源获取；skill 不捆绑模型库或依赖个人素材目录。用户提供的模型和其他资料可直接使用。资料、素材与成果保存在项目中，仓库开发验证在库外进行。

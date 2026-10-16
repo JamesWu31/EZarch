@@ -25,6 +25,7 @@ def project(**changes):
 
 
 def test_opening_topology_and_units(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p = project()
     parts = build(p)
     plan = extract_view(parts, p.views[0])
@@ -59,6 +60,7 @@ def test_input_validation():
 
 
 def test_dxf_to_model_to_step_and_source_change(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     source = tmp_path / 'outline.dxf'
     doc = ezdxf.new()
     doc.units = ezdxf.units.M
@@ -85,6 +87,7 @@ def test_dxf_to_model_to_step_and_source_change(tmp_path):
 
 
 def test_parameter_change_and_stale_detection(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p = project()
     config = tmp_path / 'project.yml'
     config.write_text(yaml.safe_dump(p.model_dump()))
@@ -124,6 +127,7 @@ def test_board_independent_scale_collision_and_font(tmp_path):
 
 
 def test_stair_risers_have_no_accidental_gaps():
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p = project(elements=[dict(id='stair', kind='stair', origin=[0,0,0], steps=12, rise=160, run=280, width=1200, material='wall')])
     shape = build(p)[0].shape
     assert len(shape.Solids()) == 12
@@ -157,6 +161,7 @@ def test_reference_pdf_vectors_and_calibration(tmp_path):
 
 
 def test_missing_drawing_is_audit_failure(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     generate_views(project(), tmp_path / 'views')
     (tmp_path / 'views/plan.dxf').unlink()
     with pytest.raises(ValueError, match='Audit failed'):

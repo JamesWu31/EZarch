@@ -57,3 +57,8 @@ src/ezarch/cad.py
 src/ezarch/inspection.py
 src/ezarch/rhino.py
 src/ezarch/file_cli.py
+src/ezarch/blender.py
+src/ezarch/mesh_views.py
+scripts/blender_bridge.py
+references/blender-modeling.md
+references/blender-ecosystem.md

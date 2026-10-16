@@ -16,13 +16,13 @@ rhino3dm 无需 Rhino 应用即可读写原生对象。`File3dm.Read()`、`Objec
 
 新增几何可以直接用 `NurbsCurve`、`NurbsSurface`、解析曲线、`Extrusion.CreateWithPlane()`、`AddInnerProfile()`、`Brep.CreateFrom...()`，然后 `doc.Objects.Add(geometry, attributes)`。通用 `ezarch.rhino.write_geometry(objects, target, units, tolerance)` 接收原生 geometry/attributes 对，不要求建筑 schema；需要复杂图层、材质或实例树时直接管理 File3dm。曲线闭合、孔洞方向、齐次 NURBS 权重和结点序列属于几何正确性，不能靠网格外观代替。
 
-OCCT/CadQuery 适合布尔、偏移、放样、圆角、剖切和精确测量。支持的等截面拉伸实体可转为闭合 3DM BRep；任意带裁剪曲面的 OCCT→3DM 不是已解决的通用转换。优先在适合的精确表示里操作，保留 STEP 给 Rhino 导入；若本次必须以特定曲面 3DM 交付，继续选择经验证的适配，不能用全网格冒充。详见 [交换边界](exchange-verification.md)。
+Blender 用于主要三维制作；rhino3dm 保留精确文件读写与适用局部操作。跨入 Blender 的曲面通常使用网格，不能默认恢复为可精确编辑的 NURBS。CadQuery/STEP 主线暂缓，旧接口仅作兼容；详见 [交换边界](exchange-verification.md)。
 
 ## Blender
 
 用 `bpy.ops.wm.open_mainfile(filepath=..., load_ui=False, use_scripts=False)` 读现有场景，按对象名/集合和检查结果定位；后台加 `--disable-autoexec --python-exit-code 1`。保留相机、灯光、材质、渲染设置及外部依赖，局部修改后 `bpy.ops.wm.save_as_mainfile()` 另存。材质/网格可能被多对象共享；需要单独改造时先复制相应 datablock，而非意外影响所有实例。
 
-`matrix_world` 处理父子与世界坐标；`evaluated_get(depsgraph)` 查看当前帧的修改器/约束结果，`depsgraph.object_instances` 提供实例变换。求值网格适合显示/导出，不宜反过来覆盖参数化源对象。剖切、自由形态、UV、材质节点和自定义程序都可直接写 bpy，不必转换为 scene.json。见 [Blender API](https://docs.blender.org/api/current/) 与 [渲染](rendering.md)。
+`matrix_world` 处理父子与世界坐标；`evaluated_get(depsgraph)` 查看当前帧的修改器/约束结果，`depsgraph.object_instances` 提供实例变换。求值网格适合显示/导出，不宜反过来覆盖参数化源对象。剖切、自由形态、UV、材质节点和自定义程序都可直接写 bpy，不必转换为 scene.json。见 [Blender API](https://docs.blender.org/api/current/) 、[原生建模](blender-modeling.md) 与 [渲染](rendering.md)。
 
 ## SVG
 

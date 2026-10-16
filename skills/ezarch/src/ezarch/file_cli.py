@@ -23,7 +23,8 @@ def main(argv):
         s.add_argument('--' + name)
     s.add_argument('--ids', nargs='+')
     s.add_argument('--region', nargs=4, type=float)
-    s.add_argument('--section', choices=['objects', 'instances', 'layers', 'fonts', 'pages', 'dependencies'], default='objects')
+    s.add_argument('--section', choices=['objects', 'instances', 'layers', 'fonts', 'pages', 'dependencies',
+                                       'collections', 'cameras', 'materials', 'node_groups', 'libraries'], default='objects')
     s.add_argument('--offset', type=int, default=0)
     s.add_argument('--limit', type=int, default=40)
     s = sub.add_parser('compare', help='Compare IDs/properties between two document inventories')

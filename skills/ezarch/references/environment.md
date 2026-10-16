@@ -21,14 +21,15 @@ powershell -File "<skill>/scripts/bootstrap.ps1" -Profile core
 | 安装配置 | 实际准备的能力 |
 |---|---|
 | core | 参考读取、独立二维 Drawing、resvg 静态 SVG 预览、PDF、排版、分析与检查助手 |
-| model / draft | core + CadQuery/OCCT、网格与交换库；draft 是模型投影命令的安装别名 |
+| model | core + Blender、网格与 Rhino/DAE 交换库 |
+| draft | core；独立二维无需三维内核 |
 | render | core + 检测或安装 Blender；不自动安装 CadQuery |
 | all | 建模与渲染依赖 |
 | dev | Python 开发和测试依赖；用于维护仓库 |
 
 配置增量安装。首次准备依赖需要网络；已有兼容 Blender 会被复用，否则下载官方 4.5 LTS 并校验。受支持的平台为 Windows x64、macOS x64/arm64；实际测试状态见仓库实施记录。安装器会准备随库仿宋字体，但选用其他工具或字体不依赖该字体。
 
-随库建模环境使用 CadQuery 2.8 / OCP 7.9.3 / VTK 9.6.2；包含的 rhino3dm 安装包要求 macOS 14+。依赖锁为 Intel Mac 保留可用的 Numba/llvmlite 安装包，uv 对指定原生依赖使用 wheel，避免在用户电脑临时编译。已有其他可用环境仍可按任务使用。
+默认环境不安装 CadQuery/OCCT/VTK；独立 legacy-cad extra 只保留旧项目兼容，不由 bootstrap 启用。rhino3dm 安装包要求 macOS 14+。指定原生依赖使用 wheel，避免在用户电脑临时编译。Blender 使用自己的 Python，外围库留在独立环境。
 
 `scripts/run.py` 只是启动 skill 私有 `.venv` 的便捷入口。其他兼容环境也可以安装 Python 包后运行 `python -m ezarch.cli`，或直接导入需要的 API。`doctor` 返回环境状态，适合缺命令、版本或后端不确定时使用。
 
@@ -38,7 +39,8 @@ powershell -File "<skill>/scripts/bootstrap.ps1" -Profile core
 
 ```text
 reference <PDF|image> --out <dir>
-views <project.yml> --only <view-id> --formats dxf pdf --out <dir>
+blender run <script.py> --source <existing.blend> --save <result.blend> --out <dir>
+blender view <model.blend> --spec <view.json> --formats dxf pdf --out <dir>
 render <scene.json|blend|glb> --camera <id|all> --out <dir>
 board <board.yml> --formats pdf --out <dir>
 ```
@@ -47,7 +49,7 @@ board <board.yml> --formats pdf --out <dir>
 
 ## 原始文件操作与 DWG 可选依赖
 
-`inspect`、`query`、`compare`、`edit` 不依赖 project.yml，入口见 [读取定位](file-understanding.md)。3DM/STEP/网格索引需要 model 依赖；BLEND 索引需要 Blender。仅处理 DWG/DXF 时 core 加 ODA 即可，不需要 Rhino/AutoCAD/CadQuery。
+`inspect`、`query`、`compare`、`edit` 不依赖 project.yml，入口见 [读取定位](file-understanding.md)。3DM/网格索引需要 model Python 依赖；BLEND 索引需要 Blender。STEP 暂缓，旧索引依赖 legacy-cad。仅处理 DWG/DXF 时 core 加 ODA 即可，不需要 Rhino/AutoCAD/CadQuery。
 
 AI 可运行 `bootstrap.sh --profile core --install-oda`；Windows 使用 `bootstrap.ps1 -Profile core -InstallODA`。安装器先检测已有程序，再从 ODA 官方页面取得对应安装包；macOS 在私有缓存复制签名应用，Windows 验证签名后尝试 MSI 提取，不捆绑安装包到仓库。可以通过 `EZARCH_ODA` 指定现有可执行文件。免费闭源 File Converter 与收费 ODA SDK 不同；系统权限、厂商许可或安装布局变化导致无法自动完成时，返回具体问题，不绕过系统保护。
 

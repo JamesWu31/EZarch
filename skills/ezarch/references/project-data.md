@@ -1,5 +1,7 @@
 # Optional project.yml API
 
+> 旧 project.yml 兼容接口：新三维工作使用 Blender 原生 API，见 [建模操作](blender-modeling.md)。model/views/draft 依赖已暂缓的 legacy-cad；默认安装不启用。该文档的构件、字段和材质范围仅适用于旧助手。
+
 This is the input contract for the optional `model`, `views`, `brief` and `diagram` helpers, not a universal project schema. Use it only when invoking those helpers. Existing files, direct ezdxf/bpy/CadQuery calls, SVG, CSV, image coordinates and other project structures do not need to adopt it.
 
 Within this API, lengths/positions are millimetres and colors are RGB components from 0 to 1. IDs are filename-safe; stable IDs help when using its cross-file comparisons. Fields below document the helper API; they do not prescribe a building or output style.

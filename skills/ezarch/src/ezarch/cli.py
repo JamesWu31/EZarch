@@ -14,14 +14,19 @@ from .project import read_project, write_json
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "blender":
+        from .blender import main as blender_main
+        return blender_main(argv[1:])
     if argv and argv[0] in {"inspect", "query", "compare", "convert", "edit"}:
         from .file_cli import main as file_main
         return file_main(argv)
-    parser = argparse.ArgumentParser(prog="ezarch", epilog="File operations: inspect, query, compare, convert, edit (each supports --help)")
+    parser = argparse.ArgumentParser(prog="ezarch", epilog="Native Blender: blender run/extract/export/view. File operations: inspect, query, compare, convert, edit (each supports --help)")
     sub = parser.add_subparsers(dest="module", required=True)
     sub.add_parser("doctor")
     for name in ["brief", "reference", "asset", "model", "draft", "views", "diagram", "render", "board", "audit", "review", "exchange"]:
         command = sub.add_parser(name)
+        if name in ("model", "views", "draft"):
+            command.description = "Legacy project.yml geometry helper; new 3D work uses blender run/extract/view."
         if name == "review":
             command.description = "Legacy evidence-record integrity check, retained for maintenance compatibility."
         command.add_argument("input", type=Path)
@@ -91,8 +96,12 @@ def main(argv=None):
             from .board import compose
             result = compose(args.input, args.out, args.formats)
         elif args.module == "exchange":
-            from .exchange import export_scene
-            result = export_scene(json.loads(args.input.read_text(encoding="utf-8")), args.out, args.formats)
+            if args.input.suffix.lower() == '.blend':
+                from .blender import export_blend
+                result = export_blend(args.input, args.out, args.formats)
+            else:
+                from .exchange import export_scene
+                result = export_scene(json.loads(args.input.read_text(encoding="utf-8")), args.out, args.formats)
         elif args.module == "audit":
             from .audit import audit
             result = audit(args.input, args.out, args.outputs)

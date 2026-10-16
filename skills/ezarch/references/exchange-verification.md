@@ -1,19 +1,25 @@
 # 工作格式、行业交付与转换边界
 
-用户的正常输入可以是 DWG/3DM/PDF/图片/链接与文字需求。工作中选择 DXF、原生3DM对象、OCCT精确几何、Blender、SVG或其他数据，由 AI 根据操作决定。输出按本次用途满足行业查看和后续编辑习惯；不要求用户处理转换，不要求每次全格式交付。
+用户的正常输入可以是 DWG/3DM/PDF/图片/链接与文字需求。工作中选择 DXF、原生3DM对象、Blender、SVG或其他数据，由 AI 根据操作决定。输出按本次用途满足行业查看和后续编辑习惯；不要求用户处理转换，不要求每次全格式交付。
 
 | 路线 | 当前能力及边界 |
 |---|---|
 | DWG ↔ DXF | 可选 ODA File Converter 双向转换；ezdxf 编辑完整工作 DXF。保留源文件与所选版本，不自动 repair。代理对象、外参、字体与专有编辑语义不能笼统保证无损 |
 | 原生 3DM | rhino3dm 读取/写回精确曲线、曲面、BRep、拉伸体和网格，UUID/属性/图层可保留。能读不等于具有完整 Rhino 几何内核 |
-| OCCT → 3DM 精确路线 | `model --formats 3dm` 对直边等截面拉伸实体生成闭合 BRep，保留对象名称/分类及洞口边界；使用原生封闭拉伸生成精确平面BRep。其他实体拒绝，不静默离散 |
+| 旧 OCCT → 3DM 路线（暂缓） | 需自行准备 legacy-cad 的旧 `model --formats 3dm` 对直边等截面拉伸实体生成闭合 BRep，保留对象名称/分类及洞口边界；使用原生封闭拉伸生成精确平面BRep。其他实体拒绝，不静默离散 |
 | 直接创建精确 3DM | 原生 rhino3dm 曲线、NURBS曲面、解析BRep、带孔拉伸体；`write_geometry` 可写任意受支持原生对象。复杂裁剪曲面/布尔按实际库能力处理 |
-| STEP | CadQuery/OCCT 的精确实体/曲面交换，可导入 Rhino继续编辑；不是参数历史。通用 3DM↔STEP 曲面转换未作为已实现能力 |
-| 网格 3DM | `exchange scene.json --formats 3dm` 保持原网格语义；与 model 的精确实体出口不同，不能替代需要曲面/实体编辑的交付 |
+| STEP（暂缓） | 旧 CadQuery/OCCT 兼容接口需要 legacy-cad；默认 Blender 主线不宣称生成精确 STEP，也不宣称任意 3DM↔STEP 转换 |
+| 网格 3DM | `blender export <file.blend> --formats 3dm --out <dir>` 输出世界坐标毫米求值网格、对象/类别与基本颜色；不能替代 NURBS/BRep 交付 |
 | DAE | 网格节点/基本颜色，供 SketchUp导入；随库毫米、Z_UP。没有原生SKP/材质完整保真承诺 |
-| GLB/GLTF | 网格、节点及适用PBR材质；随库毫米→米、Z向上→Y向上变换；不带CAD参数历史 |
+| GLB/GLTF | .blend 使用 Blender 原生导出器，保留适用 UV/PBR 和节点；3DM/DAE 简化交换与 scene.json 的基本色出口不等于完整材质保真。GLB 为米/Y向上，不保留 Blender 节点历史 |
 | BLEND | 场景、对象、修改器、相机、着色器及可打包图像；外部库/插件/缓存仍需查依赖 |
 | SVG/PDF/图像 | SVG保留矢量对象、文字和分组；PDF面向出图，图片面向预览/表现。不能仅靠PDF代替可编辑CAD模型 |
+
+## Rhino 与 Blender
+
+现有开源 [import_3dm](https://github.com/jesterKing/import_3dm) 可作为按需插件，使用 rhino3dm 读取显示网格。复杂 BRep/Extrusion 没有缓存网格时不保证可转换，读取到包围盒也不能视为已完整理解表面。需识别不支持/遗漏对象；精确源 3DM 保留，不能全量网格化覆盖。原生 Rhino 引擎桥接仍暂缓。
+
+从 Blender 导出的 3DM 仍为可编辑网格。3DM 的原生精确对象可直接通过 rhino3dm 继续读写；这些是不同操作。Rhino 8 可交换 GLB/glTF，曲面会离散为网格。复杂程序材质需按要求烘焙，完整原工程保留 .blend；不宣称转换后在不同渲染器中外观完全相同。
 
 ## DWG 操作
 

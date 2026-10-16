@@ -12,7 +12,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -20,11 +20,14 @@ jobs:
           version: '0.11.26'
       - name: Locked runtime
         run: uv sync --project skills/ezarch --python 3.12 --frozen --extra model --extra dev
+      - name: Blender integration setup
+        run: uv run --project skills/ezarch --no-sync python -c "from ezarch.environment import install_blender; print(install_blender())"
       - name: Optional DWG converter integration setup
         run: uv run --project skills/ezarch --no-sync python -c "from ezarch.environment import install_oda; print(install_oda())"
       - name: Unit and interoperability tests
         env:
           EZARCH_TEST_ODA: "1"
+          EZARCH_TEST_BLENDER: "1"
           PYTHONUNBUFFERED: "1"
         run: uv run --project skills/ezarch --no-sync python -m pytest -v -o faulthandler_timeout=120 tests
       - name: Lint

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ezarch"
-version = "0.5.0"
+version = "0.6.0"
 description = "Optional tools and infrastructure for architectural drawings, models and visual expression"
 requires-python = ">=3.12,<3.13"
 license = "AGPL-3.0-or-later"
@@ -16,8 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# CadQuery 2.8 supports OCP 7.9.3; older OCP releases force vulnerable VTK 9.3.1.
-model = ["cadquery==2.8.0", "vtk>=9.5.1,<10", "trimesh>=4.9,<6", "rhino3dm==8.35.0", "pycollada>=0.9,<1",
+model = ["trimesh>=4.9,<6", "rhino3dm==8.35.0", "pycollada>=0.9,<1"]
+# Retained only for pre-0.6 projects; no bootstrap profile enables this extra.
+legacy-cad = ["cadquery==2.8.0", "vtk>=9.5.1,<10",
   # Newer Numba/llvmlite no longer publish macOS Intel wheels.
   "numba==0.62.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
   "nlopt==2.9.1; sys_platform == 'darwin' and platform_machine == 'x86_64'"]
@@ -37,6 +38,7 @@ only-include = [
   "src/ezarch/intake.py", "src/ezarch/project.py", "src/ezarch/quality.py",
   "src/ezarch/render.py", "src/ezarch/views.py",
   "src/ezarch/cad.py", "src/ezarch/inspection.py", "src/ezarch/rhino.py", "src/ezarch/file_cli.py",
+  "src/ezarch/blender.py", "src/ezarch/mesh_views.py",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
@@ -51,6 +53,7 @@ only-include = [
 "scripts/blender_scene.py" = "ezarch/resources/scripts/blender_scene.py"
 "scripts/blender_verify.py" = "ezarch/resources/scripts/blender_verify.py"
 "scripts/blender_inspect.py" = "ezarch/resources/scripts/blender_inspect.py"
+"scripts/blender_bridge.py" = "ezarch/resources/scripts/blender_bridge.py"
 
 [tool.hatch.build.hooks.custom]
 path = "scripts/build_hooks.py"

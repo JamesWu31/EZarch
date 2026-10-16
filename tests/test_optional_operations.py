@@ -62,6 +62,7 @@ def test_symbol_parameters_reach_saved_geometry(tmp_path):
 
 
 def test_selected_model_and_view_exports_audit_without_siblings(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p = simple_project()
     generate_model(p, tmp_path / 'model', formats=['scene', 'glb'])
     assert not (tmp_path / 'model/model.step').exists()
@@ -91,6 +92,7 @@ def test_standalone_dxf_audit_does_not_impose_mm_or_project(tmp_path):
 
 
 def test_selected_exports_ignore_older_unselected_siblings(tmp_path):
+    pytest.importorskip('cadquery', reason='Legacy CadQuery compatibility only')
     p = simple_project()
     generate_model(p, tmp_path / 'model', formats=['step', 'scene', 'glb', '3dm', 'dae'])
     p.elements[0]['size'][2] = 4000

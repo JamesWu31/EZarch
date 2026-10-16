@@ -1,35 +1,35 @@
-# 几何与二维图纸工具
+# 几何与二维技术图纸
 
-精确实体可用 CadQuery/OCCT，自由网格和场景可用 Blender Python，二维 CAD 可直接用 ezdxf，图解可直接用 SVG。这些工具可以独立使用；是否共享几何、从二维建模或从模型出图，由任务决定。
+三维主线是 [Blender 原生建模](blender-modeling.md)，二维 CAD 可直接使用 ezdxf，图解和排版可用 SVG/PDF。模块独立；是否从二维建模、从模型出图或共享参数，由任务决定。
 
 ## 独立二维
 
-`ezarch.drafting.Drawing(bounds, scale, title, number, style=None, font=None)` 不依赖三维模型，可输出同源 DXF/PDF/SVG/PNG。bounds、物体坐标以模型 mm 输入；scale 为比例分母，文字和笔宽用纸面 mm。方法包括 poly、text、axis、dimension、chain、level、north、section_mark、index、leader、furniture，签名见 `src/ezarch/drafting.py`。默认不添加图框或比例尺；可自行组合图框。font 为字体文件路径，style 覆写所需制图参数。适用符号参考见 [中国制图](chinese-drafting.md)。
+`ezarch.drafting.Drawing(bounds, scale, title, number, style=None, font=None)` 可输出同源 DXF/PDF/SVG/PNG。bounds、物体坐标以模型 mm 输入；scale 为比例分母，文字和笔宽用纸面 mm。方法包括 poly、text、axis、dimension、chain、level、north、section_mark、index、leader、furniture；签名见 src/ezarch/drafting.py。默认不添加图框或比例尺。样式、字体和组合由任务决定。
 
-Drawing 是常规技术图的便利封装。需要特殊线型、块、斜向/径向尺寸时，可直接调用 ezdxf 创建实体、尺寸和文字样式；已有 CAD 也可保留其原图层和块结构。无需先转换成 project.yml。
+需要特殊线型、块、斜向/径向尺寸时直接用 ezdxf；修改已有 CAD 可保留原图层、块、布局和样式。见 [中国制图](chinese-drafting.md) 与 [连续修改](edit-existing.md)。
 
-## 精确实体与投影
+## Blender 模型剖切与投影
 
-`model <project.yml> --formats step glb --out <dir>` 从有限的便捷构件生成所选格式；省略 formats 默认仅 STEP。该命令的参数见 [接口说明](project-data.md)。复杂几何可直接用 CadQuery 的 loft/sweep/Boolean，或用 Blender 建模，不受构件列表限制。
+可直接写 bpy/几何算法，也可用 `blender view <source.blend> --spec <view.json> --formats dxf pdf --out <dir>`。支持 `--objects`、`--collections`、`--unit-scale-m`，筛选语义见建模文档。JSON 只配置这次可选视图助手，不是统一项目文件。
 
-若要复用随库投影，可在项目 Python 中构造 `Part(id, shape, material, category)`，使用 `mesh_scene` 和 `extract_view`；也可使用其他投影方法。`views <project.yml> --only <id...> --out <dir>` 提供真实平面求交和隐藏线输出。
-
-| 随库视图参数 | 含义 |
+| 视图字段 | 此助手的含义 |
 |---|---|
-| plan 的 cut_z / floor_z | 剖切高度 / 该层投影下界 |
-| section 的 axis / at | x 或 y 剖切轴和位置；x 剖看向负 x，y 剖看向正 y |
-| elevation / axon 的 normal / xdir | 观察法向和图面向右向量；两者叉乘决定向上 |
-| scale: 100 | 1:100；固定纸幅容纳不下时工具报错，不静默改变比例 |
-| projection_min_z | 默认不投影 0 mm 以下未剖背景；地下室/地形可设合适高度或 null |
-| exclude / exclude_ids | 按类别或对象决定该视图的可见内容 |
-| room_labels | 按视图覆写标签位置和文字，不必改变房间几何 |
+| id / kind | 输出名；plan、section、elevation、axon |
+| scale / paper_mm / margin | 比例分母、可选纸幅与纸面边距；不静默缩放以适应纸张 |
+| cut_z / floor_z | 平面剖切高度/下界，世界坐标毫米 |
+| axis / at | section 的 x/y 方向与剖切坐标；默认 y 剖向 +y 看，x 剖向 -x 看 |
+| normal / xdir / origin | 可覆写观察基准；normal 朝向观察者，xdir 为图面向右，origin 为世界毫米坐标；保留 normal 背侧几何 |
+| exclude / exclude_ids | 排除类别/几何快照对象；也可在提取时直接筛选对象或集合 |
+| tolerance_mm / crease_degrees | 网格顶点合并容差，默认 0.05 mm；特征边折角阈值，默认 25°，轮廓边独立识别 |
+| max_triangles | 当前辅助算法计算量保护，默认 200000；可显式提高，或选择相关构件，不自动粗化模型 |
+| drafting | 可选 Drawing 标注接口；也可导入生成 DXF 自行继续编辑 |
 
-几何剖切和建筑符号是两种表达：例如门扇扫掠、楼梯折断、上方虚线不是简单实体切片能自动决定的。技术图可按图种和阶段补充，参考中的有意断线可保留；概念图可使用所需简化。二维修改也不自动成为可反向推断的三维语义。
+这个入口读取当前 viewport 求值三角网格，求平面交线并组闭合区域，对不透明表面做正交可见线计算。它不会自动读取 render-only 修改器，也不将玻璃自动视为透明投影；按图纸需要选对象。输出的 mesh-geometry.json 标明来源与容差。开放剖切轮廓会报告，不能把不闭合线条称为完整剖面。
 
-随库模型/视图使用 mm 和真实尺寸 DXF；GLB/Blender 适配器转换为 m。这是该接口的单位约定，其他工具或数据可使用自己的单位。网格化和曲线采样容差与源数据可信精度不同。
+网格曲线的精度由源细分、浮点坐标和计算容差共同决定。技术图应使用符合所需精度的模型，保留源曲线或设计参数；并检查关键控制点、开口、层高与输出比例。不同单位转换必须作用于真实坐标，不只是文字标签。
 
-`views --formats dxf pdf` 可选择输出，省略 formats 保留 DXF/SVG/PDF/PNG 便利默认值。附带几何记录与报告供检查使用。视图不附预制页脚，已有模板可单独合成。技术图若改变打印比例，相应比例标签也要对应实际输出。
+几何投影还需要按用途深化：门扇扫掠、楼梯折断、上方虚线、材质填充、轴网、尺寸和标高并不是网格切片自动决定的。辅助命令输出是可编辑图纸基础，完整度和适用规范由当前设计要求决定。艺术线稿不能单凭外观宣称精确 CAD。
 
-## 可运行的原生操作
+## 既有兼容接口
 
-创建或修改已有 DXF、通过 CadQuery loft/cut/section 出图，见 [独立操作例子](edit-existing.md)。这些例子可脱离 project.yml 使用。
+旧 `model/views/draft <project.yml>`、geometry.Part 和 OCCT 投影代码仅保留已有项目兼容，依赖独立 legacy-cad extra；默认任何安装 profile 都不启用它。新工作不引导到这条路线，STEP 精确实体主线暂缓。已有旧项目可按授权环境继续维护，详见 [旧参数接口](project-data.md)。

@@ -1,4 +1,4 @@
-"""One exact geometry source for model exchange, cuts and rendering meshes."""
+"""Pre-0.6 CadQuery compatibility helpers. New 3D work uses native Blender."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,7 +26,10 @@ def box(origin, size):
 
 
 def build(project: Project) -> list[Part]:
-    import cadquery as cq
+    try:
+        import cadquery as cq
+    except ImportError as error:
+        raise RuntimeError('This project.yml builder is a legacy CadQuery helper. Use blender run for native 3D work; legacy-cad is only for continuing old projects.') from error
     result: list[Part] = []
     for e in project.elements:
         kind, eid, material = e["kind"], e["id"], e["material"]

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- Make native Blender Python the primary 3D route, with optional script execution, evaluated mesh extraction, GLB/3DM/DAE exchange and mesh-based sections/hidden-line projections.
+- Keep full .blend editing independent of project.yml, preserve source scenes, and verify exchange units against evaluated geometry.
+- Add focused modeling and community-plugin/node-asset guidance; expand material, render-pass and compositing guidance without prescribing designs or task sequences.
+- Remove CadQuery/OCCT/VTK from default installation profiles; retain old project helpers behind a legacy-cad extra for existing projects only. Precise STEP is deferred.
+- Retain modular CAD/SVG/PDF tools, proposal confirmation, design/precision expectations, and public-project separation.
+
 ## 0.5.0
 
 - Accept raw-file workflows: version-bound inspection, bounded object queries, CAD/3DM/SVG selection edits and inventory comparison, independent of Project YAML.
