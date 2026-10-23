@@ -2,6 +2,10 @@
 
 已有环境或现有脚本能够完成任务时，可以直接使用。纯 SVG 文本生成不需要安装 EZarch、CadQuery 或 Blender。下面是选择随库工具时的安装方法，不是每次任务的前置步骤。
 
+## Rhino 应用与官方 MCP
+
+用户要在 Rhino 中建模或控制 Rhino/Grasshopper 时，按 [Rhino 官方 MCP](rhino-mcp.md) 检查已有工具、本机 Rhino 与运行时；需要时使用目标 Rhino 自带 Yak 从 McNeel 官方源安装 Rhino-MCP-Platform，再按 [实际客户端](rhino-mcp-clients.md) 连接并运行 MCPStart。该路线不限定 Codex，也不需要先安装下述 Blender/Python 全套环境。离线 3DM 文件读写仍使用按需的 model 依赖。
+
 ## 随库环境
 
 从 SKILL.md 所在目录确定 `<skill>`。安装器使用 uv、Python 3.12 和锁文件，在 skill 内建立 `.venv`，不替换系统 Python。

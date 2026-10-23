@@ -12,11 +12,13 @@
 
 ## Rhino 文件与精确实体
 
+用户要修改已打开的 Rhino 文档、调用 Rhino 原生实体/曲面操作或通过自然语言操控 Grasshopper 时，按 [Rhino 官方 MCP](rhino-mcp.md) 定位现有会话并在其文档中编辑；缺少连接时完成官方安装、客户端连接和启动流程。以下 rhino3dm 路线用于离线文件处理，按实际需求选择。
+
 rhino3dm 无需 Rhino 应用即可读写原生对象。`File3dm.Read()`、`Objects.FindId()`、`Geometry.Duplicate()/Transform()`、对象属性及 `File3dm.Write()` 可延续用户文件；可选 `edit` 支持 UUID 选定对象的位移和 `--name`。它保存整个 3DM 并保留 UUID，不将其他曲面转换为网格。更深编辑按对象选择 API。
 
 新增几何可以直接用 `NurbsCurve`、`NurbsSurface`、解析曲线、`Extrusion.CreateWithPlane()`、`AddInnerProfile()`、`Brep.CreateFrom...()`，然后 `doc.Objects.Add(geometry, attributes)`。通用 `ezarch.rhino.write_geometry(objects, target, units, tolerance)` 接收原生 geometry/attributes 对，不要求建筑 schema；需要复杂图层、材质或实例树时直接管理 File3dm。曲线闭合、孔洞方向、齐次 NURBS 权重和结点序列属于几何正确性，不能靠网格外观代替。
 
-Blender 用于主要三维制作；rhino3dm 保留精确文件读写与适用局部操作。跨入 Blender 的曲面通常使用网格，不能默认恢复为可精确编辑的 NURBS。CadQuery/STEP 主线暂缓，旧接口仅作兼容；详见 [交换边界](exchange-verification.md)。
+未指定应用时 Blender 用于主要三维制作；指定 Rhino 时可通过官方 MCP 直接操作 Rhino，rhino3dm 保留离线精确文件读写与适用局部操作。跨入 Blender 的曲面通常使用网格，不能默认恢复为可精确编辑的 NURBS。CadQuery/STEP 主线暂缓，旧接口仅作兼容；详见 [交换边界](exchange-verification.md)。
 
 ## Blender
 

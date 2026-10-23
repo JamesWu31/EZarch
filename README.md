@@ -10,6 +10,7 @@
 |---|---|
 | 二维 CAD / 技术线稿 | ezdxf，独立 Drawing |
 | 三维建模 / 场景 / 渲染 / 合成 | Blender Python、BMesh、Geometry Nodes、适用社区插件和资产 |
+| Rhino 原生实体 / 曲面建模、当前模型修改、Grasshopper | McNeel 官方 Rhino MCP Platform、Rhino 原生 API、用户选定的 AI 客户端 |
 | 模型剖切 / 正交可见线 | Blender 求值网格 + 可选几何与二维助手 |
 | 地图 / 分析图 / 图表 / 自由版式 | 原生 SVG、项目脚本、可选 Canvas/PDF 合成 |
 | 技术制图参考 | 适用的尺寸、轴线、标高、索引、比例等规则 |
@@ -37,11 +38,13 @@ core 含独立二维、参考提取、分析和排版助手；draft 保持独立
 
 包含 rhino3dm 的建模环境要求 macOS 14 或更高版本；Windows 目标为 x64。原生 Python 依赖使用预编译安装包，Windows 和 macOS 的自动测试结果见本仓库 Actions。
 
+需要在 Rhino 内建模时，先按 [Rhino 官方 MCP 流程](skills/ezarch/references/rhino-mcp.md) 检查已有连接；需要时使用目标 Rhino 自带 Yak 从 McNeel 官方包源安装 Rhino-MCP-Platform，协助用户连接所选 AI 客户端并运行 MCPStart。该路线需要已安装并获许可的兼容 Rhino，不要求先安装 Blender/Python 全套环境；[客户端配置](skills/ezarch/references/rhino-mcp-clients.md) 按需选择，不限定 Codex。其他平台和客户端以实际兼容条件及连接验证为准。
+
 分发包含脚本、Python 源码、依赖锁、轻量二维规则和开放仿宋字体；运行依赖按目标机器准备。三维模型、PBR 与 HDRI 从公开可读可下载来源按项目获取，不捆绑素材库。字体、图块和样式可按用户要求选择，仿宋不是所有图面的指定字体。
 
 ## 兼容与技术边界
 
-DWG/DXF 通过可选免费闭源 ODA 转换器双向适配。三维以 Blender 为核心，rhino3dm 保留原生对象读取/局部修改；Blender 可导出网格 3DM、GLB 和 DAE。Rhino 曲面导入通常需要文件内的显示网格，缺失网格的复杂 BRep 不能保证完整转换；网格不冒充 NURBS/BRep。CadQuery/STEP 主线暂缓，旧代码仅用于已有项目兼容，不由默认安装启用。商业应用控制、SKP 写入和 IFC 暂缓。
+DWG/DXF 通过可选免费闭源 ODA 转换器双向适配。未指定三维应用时以 Blender 为核心，用户指定 Rhino 时可通过官方 MCP 在 Rhino 文档中直接调用原生建模能力；rhino3dm 保留离线原生对象读取/局部修改。Blender 可导出网格 3DM、GLB 和 DAE。Rhino 曲面导入 Blender 通常需要文件内的显示网格，缺失网格的复杂 BRep 不能保证完整转换；网格不冒充 NURBS/BRep。CadQuery/STEP 主线暂缓，旧代码仅用于已有项目兼容，不由默认安装启用。SketchUp/AutoCAD 应用控制、SKP 写入和 IFC 暂缓。
 
 Blender 保留工程单位，几何快照和二维助手使用 mm，GLB 显式转换为 m；自由 SVG、地图或其他程序不必采用同一坐标体系。图纸缩放、字体和转换损失见 [格式说明](skills/ezarch/references/exchange-verification.md)。开放库回读不等于在目标商业软件中实际打开验收。
 
