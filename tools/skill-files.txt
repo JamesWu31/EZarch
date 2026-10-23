@@ -62,3 +62,5 @@ src/ezarch/mesh_views.py
 scripts/blender_bridge.py
 references/blender-modeling.md
 references/blender-ecosystem.md
+references/rhino-mcp.md
+references/rhino-mcp-clients.md

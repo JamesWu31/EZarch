@@ -6,6 +6,7 @@
 |---|---|
 | DWG ↔ DXF | 可选 ODA File Converter 双向转换；ezdxf 编辑完整工作 DXF。保留源文件与所选版本，不自动 repair。代理对象、外参、字体与专有编辑语义不能笼统保证无损 |
 | 原生 3DM | rhino3dm 读取/写回精确曲线、曲面、BRep、拉伸体和网格，UUID/属性/图层可保留。能读不等于具有完整 Rhino 几何内核 |
+| Rhino 应用原生建模 | 通过 [McNeel 官方 MCP](rhino-mcp.md) 在已获许可的 Rhino 中调用原生 API、命令或 Grasshopper，保留可编辑 3DM；需要兼容插件、运行时和 AI 客户端，实际连接与模型分别验证 |
 | 旧 OCCT → 3DM 路线（暂缓） | 需自行准备 legacy-cad 的旧 `model --formats 3dm` 对直边等截面拉伸实体生成闭合 BRep，保留对象名称/分类及洞口边界；使用原生封闭拉伸生成精确平面BRep。其他实体拒绝，不静默离散 |
 | 直接创建精确 3DM | 原生 rhino3dm 曲线、NURBS曲面、解析BRep、带孔拉伸体；`write_geometry` 可写任意受支持原生对象。复杂裁剪曲面/布尔按实际库能力处理 |
 | STEP（暂缓） | 旧 CadQuery/OCCT 兼容接口需要 legacy-cad；默认 Blender 主线不宣称生成精确 STEP，也不宣称任意 3DM↔STEP 转换 |
@@ -17,7 +18,7 @@
 
 ## Rhino 与 Blender
 
-现有开源 [import_3dm](https://github.com/jesterKing/import_3dm) 可作为按需插件，使用 rhino3dm 读取显示网格。复杂 BRep/Extrusion 没有缓存网格时不保证可转换，读取到包围盒也不能视为已完整理解表面。需识别不支持/遗漏对象；精确源 3DM 保留，不能全量网格化覆盖。原生 Rhino 引擎桥接仍暂缓。
+现有开源 [import_3dm](https://github.com/jesterKing/import_3dm) 可作为按需插件，使用 rhino3dm 读取显示网格。复杂 BRep/Extrusion 没有缓存网格时不保证可转换，读取到包围盒也不能视为已完整理解表面。需识别不支持/遗漏对象；精确源 3DM 保留，不能全量网格化覆盖。用户需要 Rhino 应用内的曲面、实体运算或连续修改时，按 [官方 MCP](rhino-mcp.md) 连接 Rhino；这不改变 Blender 导出的网格性质，也不扩大离线 rhino3dm 的内核能力。
 
 从 Blender 导出的 3DM 仍为可编辑网格。3DM 的原生精确对象可直接通过 rhino3dm 继续读写；这些是不同操作。Rhino 8 可交换 GLB/glTF，曲面会离散为网格。复杂程序材质需按要求烘焙，完整原工程保留 .blend；不宣称转换后在不同渲染器中外观完全相同。
 
@@ -37,4 +38,4 @@ ODA 官方提供免费的闭源 File Converter，支持 macOS/Windows和命令�
 
 开放库回读、转换回转、在 AutoCAD/Rhino/SketchUp 中实际打开继续编辑分别记录。未做商业软件验收时如实说明；不能从扩展名推断已通过。用户再次提供修改后的文件时，以新版本为依据接续工作。
 
-技术依据：[rhino3dm](https://github.com/mcneel/rhino3dm)、[BRep API](https://mcneel.github.io/rhino3dm/python/api/Brep.html)、[CadQuery交换](https://cadquery.readthedocs.io/en/latest/importexport.html)、[glTF单位与坐标](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units)。原生商业应用控制、SKP写入和IFC仍暂缓；DWG/3DM文件适配不随之暂缓。
+技术依据：[rhino3dm](https://github.com/mcneel/rhino3dm)、[BRep API](https://mcneel.github.io/rhino3dm/python/api/Brep.html)、[Rhino 官方 MCP](rhino-mcp.md)、[CadQuery交换](https://cadquery.readthedocs.io/en/latest/importexport.html)、[glTF单位与坐标](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units)。SketchUp/AutoCAD 应用控制、SKP写入和IFC仍暂缓；DWG/3DM文件适配不随之暂缓。

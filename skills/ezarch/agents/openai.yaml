@@ -1,4 +1,4 @@
 interface:
   display_name: "EZarch"
-  short_description: "Programmatic architectural drawings and Blender models"
-  default_prompt: "Use $ezarch to realize my architectural request programmatically, following my requirements and references while choosing suitable tools and methods."
+  short_description: "Architectural drawings, Blender models and native Rhino modeling"
+  default_prompt: "Use $ezarch to realize my architectural request, following my references and chosen tools; when I choose Rhino, check or set up its official MCP connection and build an editable native model."
